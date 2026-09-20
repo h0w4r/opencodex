@@ -70,3 +70,10 @@ go/
 
 # Rust native helpers keep their reproducible sources and lockfile in git, never local artifacts.
 native/**/target/
+
+# Perfiles personales y evidencias locales del fork: nunca publicar credenciales.
+.opencodex/
+.omp/
+.agentstack/
+**/.frontend-quality/runs/
+**/.frontend-quality/baselines/

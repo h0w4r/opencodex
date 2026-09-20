@@ -1,3 +1,4 @@
+import { featherlessCopy } from "./featherless-copy";
 // English — source of truth. Its keys define the TKey type; de/fr/ko/zh/zh-TW/ru/ja/tr must match (compile-checked).
 // Strings with {cmd} render a <code> chip via <Trans>; {var} are plain interpolations.
 /**
@@ -6,6 +7,7 @@
  * `{var}` are plain interpolations.
  */
 export const en = {
+  ...featherlessCopy,
   "usage.incomplete": "Some usage records could not be included. Counts, dates, and rankings reflect readable records only.",
   "models.pickerOrder.usageIncomplete": "Cannot save most-used order because usage history is incomplete. Choose another order or repair the history first.",
   "api.attribution.noRecordedUse": "No use in readable records",

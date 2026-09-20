@@ -234,6 +234,9 @@ export const MANAGEMENT_ROUTES: readonly ManagementRoute[] = [
   { method: "POST", path: "/api/storage/trash/restore", module: "server/management/logs-usage-routes", mutates: true },
   { method: "PUT", path: "/api/debug", module: "server/management/logs-usage-routes", mutates: true },
   { method: "PUT", path: "/api/storage/cleanup-policy", module: "server/management/logs-usage-routes", mutates: true },
+  // Explorador público independiente de la lista de modelos habilitados.
+  { method: "GET", path: "/api/featherless/models", module: "server/management/featherless-routes", mutates: false },
+  { method: "POST", path: "/api/featherless/selection", module: "server/management/featherless-routes", mutates: true },
   // server/management/model-routes
   { method: "GET", path: "/api/aliases", module: "server/management/model-routes", mutates: false },
   { method: "GET", path: "/api/catalog", module: "server/management/model-routes", mutates: false },

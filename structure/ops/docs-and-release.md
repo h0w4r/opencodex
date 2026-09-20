@@ -1,4 +1,5 @@
 # Docs And Release
+> Ampliación local: [catálogo Featherless, selección y límites](../featherless-catalog.md).
 
 Native steering follows [the shared WebSocket contract](../transports/streaming-health.md#experimental-native-mid-turn-steering); this surface's defaults remain unchanged.
 

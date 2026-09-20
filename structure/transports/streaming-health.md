@@ -1,4 +1,5 @@
 # Streaming Health And WebSocket
+> Ampliación local: [catálogo Featherless, selección y límites](../featherless-catalog.md).
 
 Management provider-validation calls use the [initialization-independent relative send-path validation](../config.md#provider-relative-send-paths) before persistence.
 

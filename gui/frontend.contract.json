@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "status": "ready",
+  "stack": {
+    "framework": "react",
+    "packageManager": "bun",
+    "uiSystem": "OpenCodex: componentes y tokens existentes",
+    "cssStrategy": "CSS nativo y tokens light-dark"
+  },
+  "sources": {
+    "components": "src/ui.tsx",
+    "tokens": "src/styles.css",
+    "catalog": "src/pages/FeatherlessCatalog.tsx"
+  },
+  "commands": [
+    {
+      "name": "compilación real de la GUI",
+      "argv": [
+        "bun",
+        "run",
+        "build"
+      ]
+    }
+  ],
+  "baseURL": "http://127.0.0.1:10101",
+  "journey": ".frontend-quality/journey.mjs",
+  "routes": [
+    "/#models/featherless"
+  ],
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "geometry": [
+    {
+      "equalProperties": [
+        "height",
+        "fontFamily"
+      ],
+      "name": "acciones de paginación",
+      "minCount": 3,
+      "expected": {
+        "boxSizing": "border-box",
+        "height": 40
+      },
+      "tolerancePx": 1,
+      "selector": ".fl-pagination button"
+    }
+  ],
+  "visual": {
+    "selector": "#root",
+    "masks": [".fl-snapshot-time", ".fl-results [role=status]"],
+    "maxDiffPixels": 0
+  },
+  "timeouts": {
+    "actionMs": 45000,
+    "navigationMs": 30000,
+    "startupMs": 30000
+  }
+}

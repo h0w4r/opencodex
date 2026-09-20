@@ -1667,7 +1667,8 @@
     "api-key-catalog-authority.test.ts": "providers",
     "release-resume-identity.test.ts": "ci-workflows",
     "update-bun-ownership-lease.test.ts": "update",
-    "featherless-catalog-policy.test.ts": "providers"
+    "featherless-catalog-policy.test.ts": "providers",
+    "featherless-index-query.test.ts": "providers"
   },
   "migrated": [
     "adapters",

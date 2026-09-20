@@ -1,8 +1,29 @@
 import { describe, expect, test } from "bun:test";
-import { classifyFeatherlessModel, featherlessSearchUrl, isFeatherlessCatalogProvider } from "../../src/providers/featherless-catalog";
+import { classifyFeatherlessModel, featherlessSearchUrl, featherlessSourceUrl, isFeatherlessCatalogProvider } from "../../src/providers/featherless-catalog";
 
 describe("Política transversal del catálogo Featherless", () => {
-  const row = (id: string, size?: number, tags?: Record<string, string[]>) => classifyFeatherlessModel({ id, parameter_size: size, classified_tags: tags });
+  test("restricciones en origen no amplían excepciones con un OR de toda la faceta tools", () => {
+    const source = featherlessSourceUrl(new URLSearchParams("capabilities=red-teaming"));
+    expect(source.searchParams.getAll("capabilities")).toEqual(["red-teaming"]);
+    expect(source.searchParams.get("supports_tool_calling")).toBe("true");
+    expect(featherlessSourceUrl(new URLSearchParams(), { min: 16 }).searchParams.get("parameter_size_min")).toBe("16");
+  });
+  const row = (id: string, size?: number, tags?: Record<string, string[]>) => classifyFeatherlessModel({ id, parameter_size: size, classified_tags: tags, supports_tool_calling: true });
+  test("herramientas es un requisito independiente del tamaño y de las excepciones", () => {
+    for (const id of ["org/normal-70B", "org/abliterated-70B", "org/cybersecurity-4B"]) {
+      expect(classifyFeatherlessModel({ id, parameter_size: 70e9, supports_tool_calling: false }).reason).toBe("tools-unsupported");
+      expect(classifyFeatherlessModel({ id, parameter_size: 70e9 }).reason).toBe("tools-unverified");
+    }
+    expect(classifyFeatherlessModel({ id: "org/agent-instruct-tools", parameter_size: 70e9, classified_tags: { capabilities: ["agent", "tool-use"] } }).reason).toBe("tools-unverified");
+  });
+  test("acepta flags publicados, no booleanos textuales ni contradicciones", () => {
+    const model = { id: "org/model", parameter_size: 70e9 };
+    expect(classifyFeatherlessModel({ ...model, features: { tool_use: true } }).reason).toBe("parameters");
+    expect(classifyFeatherlessModel({ ...model, supports_tool_calling: "true" }).reason).toBe("tools-unverified");
+    expect(classifyFeatherlessModel({ ...model, supports_tool_calling: true, features: { tool_use: false } }).reason).toBe("tools-unsupported");
+    expect(classifyFeatherlessModel({ ...model, supports_tool_calling: false, features: { tool_use: true } }).toolUse).toBe(false);
+    expect(classifyFeatherlessModel({ ...model, features: { tool_use: true } }).toolEvidence).toEqual(["features.tool_use:true"]);
+  });
   test("el límite de 16B es inclusivo y no se deduce del nombre", () => {
     expect(row("org/model", 16e9).reason).toBe("parameters");
     expect(row("org/model", 16e9 - 1).reason).toBe("excluded");
@@ -27,6 +48,8 @@ describe("Política transversal del catálogo Featherless", () => {
     expect(result.searchParams.get("page")).toBe("9999");
     expect(result.searchParams.getAll("family")).toEqual(["llama3", "qwen3"]);
     expect(result.searchParams.has("baseUrl")).toBe(false);
+    expect(result.searchParams.getAll("capabilities")).toEqual(["tool-use"]);
+    expect(featherlessSearchUrl(new URLSearchParams("capabilities=chat&capabilities=tool-use&tools=false")).searchParams.getAll("capabilities")).toEqual(["chat", "tool-use"]);
     expect(() => featherlessSearchUrl(new URLSearchParams("page=-1"))).toThrow();
     expect(() => featherlessSearchUrl(new URLSearchParams("sort=anything"))).toThrow();
   });

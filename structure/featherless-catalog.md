@@ -34,9 +34,13 @@ Una etiqueta o un nombre son una declaración del publicador, no una evaluación
 del comportamiento real. No se garantiza detectar terminologías futuras todavía
 no reconocidas ni información que el proveedor omita o publique incorrectamente.
 
-No se impone un mínimo de contexto ni un requisito de tool calling. La ficha
-expone contexto publicado, soporte declarado de herramientas y estado, incluidos
-`not_deployed` y `unknown`, sin convertir su presencia en disponibilidad de cuenta.
+No se impone un mínimo de contexto. Es obligatorio además que el proveedor
+declare tool calling mediante `supports_tool_calling=true` o
+`features.tool_use=true`. Un valor negativo prevalece ante contradicciones.
+Sin indicadores booleanos verificables se excluye el modelo; las etiquetas
+`agent`, `instruct`, nombres o familias no sustituyen esos indicadores.
+Las excepciones de tamaño no omiten este requisito. Los MCPs y las skills
+pertenecen al harness: no se afirma que el catálogo acredite cada integración.
 
 ## Paginación, filtros y eficiencia
 
@@ -49,24 +53,41 @@ Conserva los seis órdenes del sitio: tendencia, descargas, favoritos, fecha,
 tamaño y valoración. La consulta va al índice del proveedor, no a los cien
 modelos que casualmente se encuentren en la memoria del cliente.
 
-Una página remota contiene hasta 100 filas. Esto es un tamaño de página, **no un
-máximo total**: el usuario puede recorrer todas las páginas o saltar a cualquiera.
-La política local se aplica antes de enviar las filas al navegador. Una página
-puede quedar vacía sin que eso signifique que terminó el catálogo.
+El índice persistente recupera primero el conjunto >=16B con
+`parameter_size_min=16` y `supports_tool_calling=true` en origen. Los límites
+numéricos de esa API se expresan en miles de millones. Después recupera únicamente
+conjuntos de excepción (etiquetas especializadas y consultas por nombre), siempre
+con herramientas exigidas en origen. Deduplica IDs y verifica los indicadores
+antes de persistir. No recorre las 49.000 entradas generales.
 
-Los totales y contadores de facetas pertenecen al catálogo remoto antes de la
-política local. La interfaz identifica separadamente los examinados, admitidos,
-excluidos por tamaño y desconocidos de cada página. No inventa un total global
-de admitidos que no haya calculado.
+`src/providers/featherless-index.ts` publica sólo snapshots completos de la
+política vigente. `src/providers/featherless-index-query.ts` aplica los filtros
+opcionales, recalcula facetas y pagina DESPUÉS de la admisión. El contador sin
+filtros es el total permitido; no el remoto general. Cada página, salvo la última,
+contiene cien resultados admitidos. Nunca se rellena con modelos descartados.
 
-La búsqueda espera 400 ms de inactividad al escribir. Las respuestas obsoletas
-no reemplazan la consulta actual. El servidor deduplica consultas idénticas,
-mantiene hasta 64 páginas durante 120 segundos y admite como máximo 16 consultas
-concurrentes. No descarga 50.000 filas para filtrar una sola interacción.
+La primera preparación responde HTTP 202 con páginas consultadas y admitidos.
+La GUI muestra esos contadores y consulta progreso, sin un porcentaje inventado.
+La caché dura seis horas y se guarda atómicamente bajo OPENCODEX_HOME. Un cambio
+de versión de política invalida cachés anteriores. Al refrescar se conserva el
+último snapshot completo con fecha/error explícitos; nunca uno a medio construir.
 
-El límite de 30 segundos se aplica a una petición atómica de página, no a un
-recorrido completo ni a una inferencia. Cambiar de página no inicia una tarea
-global con un timeout total oculto.
+La búsqueda y las facetas habituales no hacen llamadas remotas tras indexar.
+Las vistas de tendencia, valoración, exclusividad y prioridad de modelos cargados
+preparan variantes restringidas, con caché independiente. Popularidad es relativa
+al conjunto admitido. El proveedor no publica puntuaciones globales de tendencia
+ni valoración; esos órdenes conservan el orden remoto por conjuntos, no inventan
+un score comparable. Descargas, favoritos, fecha y tamaño usan valores publicados.
+
+Dos recuperadores de páginas limitan concurrencia. El timeout de 30 segundos es
+por consulta atómica, nunca para toda la indexación. La validación muestra latidos.
+Los metadatos dinámicos de fecha y contador se excluyen de la comparación visual;
+las pruebas de interacción verifican esos contadores contra respuestas reales.
+
+`scripts/adopt-featherless-catalog.ts` revisa selecciones anteriores con metadatos
+reales y deshabilita entradas incompatibles sin borrar sus definiciones. Un fallo
+de red aborta la adopción antes de escribir. Habilitar revalida el detalle remoto,
+aunque el ID figure en el índice, para detectar una retirada de soporte.
 
 ## Habilitación y persistencia
 
@@ -104,7 +125,9 @@ un modelo no redirige por sí solo Codex Desktop a OpenCodex.
   La aceptación incluye axe, geometría, consola y comparación visual revisada.
 
 Un resultado satisfactorio de catálogo no acredita la ejecución de todos los
-modelos, su aptitud para herramientas ni su disponibilidad en un plan concreto.
+modelos, su calidad agéntica ni su disponibilidad en un plan concreto.
+`scripts/verify-featherless-gateway.ts` verifica también tool_calls estructurados,
+lectura real de un archivo local y continuación del modelo con el resultado.
 
 ## Distribución local Windows
 

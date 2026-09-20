@@ -1,15 +1,15 @@
 {
-  "runId": "2026-09-20T20-52-15-864Z-419d4b84",
-  "reason": "Capturas desktop y móvil revisadas visualmente: diseño nativo, controles legibles, filtros plegables sin desbordamiento; recorrido contra API real y persistencia real.",
-  "approvedAt": "2026-09-20T21:00:45.474Z",
+  "runId": "2026-09-20T22-16-56-123Z-8d0a500a",
+  "reason": "Revisadas capturas desktop y móvil: restricciones separadas de navegación, nombres y controles legibles sin overflow; sólo se enmascaran fecha y contador variables verificados por interacción real.",
+  "approvedAt": "2026-09-20T22:19:49.723Z",
   "files": [
     {
       "path": "desktop/route-0.png",
-      "sha256": "bec75c110396eead2560a9a3b5d86bdb8c91e046f7e7b4d5810a20564327e674"
+      "sha256": "69367e2534d11c9f42d34c1472fdcb4728cca46e0628d5d50dc8654878c0d9db"
     },
     {
       "path": "mobile/route-0.png",
-      "sha256": "7345b79b74780e8870a2aab2cfb03d3a1488bdc77513156645a4fb493db2c8d4"
+      "sha256": "f195c4144304f6b82ca4aa4a7c2de86bbac8a88340bedc5c19a793615499f413"
     }
   ]
 }

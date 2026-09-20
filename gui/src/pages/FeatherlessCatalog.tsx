@@ -4,7 +4,7 @@ import { FeatherlessFilters } from "./featherless-filters";
 import { compactNumber, FL_STATE_KEY, initialFeatherlessQuery, type FeatherlessResult, type FeatherlessRow } from "./featherless-types";
 import "./featherless-catalog.css";
 
-const SORTS = [["-trending_rank", "fl.sort.trending"], ["-downloads", "fl.sort.downloads"], ["-favorites", "fl.sort.favorites"],
+const SORTS = [["-downloads", "fl.sort.downloads"], ["-trending_rank", "fl.sort.trending"], ["-favorites", "fl.sort.favorites"],
   ["-hf_created_at", "fl.sort.newest"], ["-parameter_size", "fl.sort.size"], ["-avg_rating", "fl.sort.rating"]] as const;
 
 /** Búsqueda remota paginada: no descarga ni renderiza decenas de miles de filas por interacción. */
@@ -20,6 +20,7 @@ export default function FeatherlessCatalog({ apiBase, active }: { apiBase: strin
   const [saving, setSaving] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [progress, setProgress] = useState<{ pages: number; admitted: number } | null>(null);
   const generation = useRef(0);
   const serialized = query.toString();
   const searchedQuery = query.get("query") ?? "";
@@ -50,15 +51,23 @@ export default function FeatherlessCatalog({ apiBase, active }: { apiBase: strin
     if (!active) return;
     const current = ++generation.current;
     const controller = new AbortController();
+    let poll: number | undefined;
     try { sessionStorage.setItem(FL_STATE_KEY, serialized); } catch { /* La navegación funciona sin almacenamiento. */ }
     fetch(`${apiBase}/api/featherless/models?${serialized}`, { signal: controller.signal })
       .then(async response => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+        if (generation.current !== current) return;
+        if (body.pending && generation.current === current) {
+          setProgress(body.progress); setError(""); setResult(null);
+          poll = window.setTimeout(() => setRefresh(v => v + 1), 1500);
+          return;
+        }
+        setProgress(null);
         if (generation.current === current) { setResult(body); setError(""); setProvider(previous => body.providers.includes(previous) ? previous : body.providers[0] ?? ""); }
       }).catch(reason => { if (!controller.signal.aborted && generation.current === current) setError(String(reason.message ?? reason)); })
       .finally(() => { if (generation.current === current) setSettled(requestKey); });
-    return () => controller.abort();
+    return () => { controller.abort(); window.clearTimeout(poll); };
   }, [apiBase, active, serialized, requestKey]);
 
   async function select(model: FeatherlessRow, enabled: boolean) {
@@ -75,7 +84,7 @@ export default function FeatherlessCatalog({ apiBase, active }: { apiBase: strin
   const pagination = result?.pagination;
   const currentPage = Number(query.get("page") ?? 1);
   return <section className="fl-catalog" aria-label={t("models.tab.featherless")}>
-    <p className="fl-policy">{t("fl.policy")}</p>
+    <p className="fl-policy"><strong>{t("fl.restrictions")}</strong> {t("fl.policy")}</p>
     <div className="fl-toolbar">
       <input type="search" aria-label={t("fl.searchLabel")} placeholder={t("fl.search")} value={search} onChange={e => setSearch(e.target.value)} />
       <label>{t("fl.sort")}<select value={query.get("sort") ?? SORTS[0][0]} onChange={e => change("sort", e.target.value)}>{SORTS.map(([value, key]) => <option key={value} value={value}>{t(key)}</option>)}</select></label>
@@ -86,9 +95,10 @@ export default function FeatherlessCatalog({ apiBase, active }: { apiBase: strin
       <div id="featherless-filter-panel" className={`fl-filters-wrap${filtersOpen ? " is-open" : ""}`}><FeatherlessFilters query={query} facets={result?.facets ?? {}} change={change} /></div>
       <div className="fl-results">
         {provider ? <label className="fl-provider">{t("fl.provider")}<select value={provider} onChange={e => setProvider(e.target.value)}>{result?.providers.map(p => <option key={p}>{p}</option>)}</select></label> : <p>{t("fl.noProvider")}</p>}
-        <div role="status" aria-live="polite">{loading ? t("fl.loading") : pagination ? t("fl.counts", { total: pagination.total_items.toLocaleString(), page: pagination.current_page, pages: pagination.total_pages, shown: result!.items.length, inspected: result!.inspected }) : null}</div>
+        <div role="status" aria-live="polite">{progress ? t("fl.indexing", { pages: progress.pages, admitted: progress.admitted }) : loading ? t("fl.loading") : pagination ? t("fl.counts", { total: pagination.total_items.toLocaleString(), page: pagination.current_page, pages: pagination.total_pages, shown: result!.items.length, admitted: result!.catalog.total.toLocaleString() }) : null}</div>
         <details className="fl-note"><summary>{t("fl.countHelp")}</summary><p>{t("fl.countNote")}</p></details>
-        {result && <p className="fl-note">{t("fl.excluded", { excluded: result.excluded, unknown: result.unknown })}</p>}
+        {result && <p className="fl-note">{t("fl.snapshot")} <time className="fl-snapshot-time" dateTime={result.fetchedAt}>{result.fetchedAt}</time>{result.catalog.refreshing ? ` · ${t("fl.refreshing")}` : ""}</p>}
+        {result?.catalog.error && <p role="alert" className="fl-error">{t("fl.refreshFailed")}: {result.catalog.error}</p>}
         {error && !loading && <div role="alert" className="fl-error"><p>{t("fl.error")}</p><p>{error}</p><button type="button" onClick={() => setRefresh(v => v + 1)}>{t("fl.retry")}</button></div>}
         {!loading && !error && result?.items.length === 0 && <p>{t("fl.empty")}</p>}
         <div className="fl-models" aria-busy={loading}>
@@ -101,7 +111,7 @@ export default function FeatherlessCatalog({ apiBase, active }: { apiBase: strin
               <div className="fl-model-footer"><span>{t(model.reason === "parameters" ? "fl.reason.parameters" : "fl.reason.exception")}</span>
                 <button type="button" aria-pressed={enabled} aria-label={`${t(enabled ? "fl.disable" : "fl.enable")}: ${model.id}`} disabled={!provider || !!saving} onClick={() => select(model, !enabled)}>{t(saving === model.id ? "fl.saving" : enabled ? "fl.enabled" : "fl.enable")}</button>
               </div>
-              {model.evidence.length > 0 && <details><summary>{t("fl.evidence")}</summary><ul>{model.evidence.map(e => <li key={e}>{e}</li>)}</ul></details>}
+              <details><summary>{t("fl.evidence")}</summary><ul>{[...model.toolEvidence, ...model.evidence].map(e => <li key={e}>{e}</li>)}</ul></details>
             </article>;
           })}
         </div>

@@ -57,7 +57,7 @@
   ],
   "visual": {
     "selector": "#root",
-    "masks": [],
+    "masks": [".fl-snapshot-time", ".fl-results [role=status]"],
     "maxDiffPixels": 0
   },
   "timeouts": {

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getConfigDir } from "../config/paths";
@@ -78,4 +79,11 @@ export function loadFeatherlessCapabilityEvidence(now = Date.now()): Map<string,
   } catch {
     return new Map();
   }
+}
+
+/** Un cambio efectivo de pruebas invalida el snapshot; regenerar el mismo archivo no. */
+export function fingerprintFeatherlessCapabilityEvidence(proofs: Map<string, FeatherlessCapabilityProof>): string {
+  const stable = [...proofs.values()].sort((a, b) => a.modelId.localeCompare(b.modelId))
+    .map(proof => [proof.modelId, proof.observedAt, proof.expiresAt, proof.transport, proof.resultSha256]);
+  return createHash("sha256").update(JSON.stringify(stable)).digest("hex").slice(0, 24);
 }

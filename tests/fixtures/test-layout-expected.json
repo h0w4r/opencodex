@@ -1,4 +1,5 @@
 {
+  "featherless-catalog-policy.test.ts": "providers",
   "server-combo-held-response.test.ts": "server",
   "key-attribution.test.ts": "usage",
   "provider-send-path-import.test.ts": "server",

@@ -1,0 +1,15 @@
+{
+  "runId": "2026-09-20T20-52-15-864Z-419d4b84",
+  "reason": "Capturas desktop y móvil revisadas visualmente: diseño nativo, controles legibles, filtros plegables sin desbordamiento; recorrido contra API real y persistencia real.",
+  "approvedAt": "2026-09-20T21:00:45.474Z",
+  "files": [
+    {
+      "path": "desktop/route-0.png",
+      "sha256": "bec75c110396eead2560a9a3b5d86bdb8c91e046f7e7b4d5810a20564327e674"
+    },
+    {
+      "path": "mobile/route-0.png",
+      "sha256": "7345b79b74780e8870a2aab2cfb03d3a1488bdc77513156645a4fb493db2c8d4"
+    }
+  ]
+}

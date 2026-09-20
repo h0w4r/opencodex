@@ -1,3 +1,4 @@
+import { featherlessCopy } from "./featherless-copy";
 // Vietnamese — generated from en.ts. Must match TKey set (compile-checked).
 import type { TKey } from "./en";
 
@@ -6,6 +7,7 @@ import type { TKey } from "./en";
  * Technical terms and model identifiers intentionally remain English.
  */
 export const vi: Record<TKey, string> = {
+  ...featherlessCopy,
   "usage.incomplete": "Không thể đưa một số bản ghi sử dụng vào. Số lượng, ngày tháng và thứ hạng chỉ phản ánh các bản ghi có thể đọc được.",
   "models.pickerOrder.usageIncomplete": "Không thể lưu thứ tự dùng nhiều nhất vì lịch sử sử dụng không đầy đủ. Hãy chọn thứ tự khác hoặc sửa lịch sử trước.",
   "api.attribution.noRecordedUse": "Không có lượt sử dụng trong các bản ghi có thể đọc được",

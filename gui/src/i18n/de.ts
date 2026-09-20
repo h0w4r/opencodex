@@ -1,3 +1,4 @@
+import { featherlessCopy } from "./featherless-copy";
 // German — generated from en.ts. Must match TKey set (compile-checked).
 import type { TKey } from "./en";
 
@@ -5,6 +6,7 @@ import type { TKey } from "./en";
  * German i18n catalog, generated from en.ts. Must match the `TKey` set (compile-checked).
  */
 export const de: Record<TKey, string> = {
+  ...featherlessCopy,
   "usage.incomplete": "Einige Nutzungsdatensätze konnten nicht berücksichtigt werden. Anzahlen, Datumsangaben und Ranglisten beruhen nur auf lesbaren Datensätzen.",
   "models.pickerOrder.usageIncomplete": "Die Reihenfolge nach Nutzung kann wegen unvollständiger Nutzungsdaten nicht gespeichert werden. Wählen Sie eine andere Reihenfolge oder reparieren Sie zuerst den Verlauf.",
   "api.attribution.noRecordedUse": "Keine Nutzung in lesbaren Datensätzen",

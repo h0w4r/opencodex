@@ -1,4 +1,5 @@
 # GUI And Management API
+> Ampliación local: [catálogo Featherless, selección y límites](featherless-catalog.md).
 
 Native result continuations and function-result injection follow [the mode-specific result and control contract](transports/streaming-health.md#experimental-native-function-result-injection); this surface does not infer upstream support or alter its defaults.
 Explicit Codex CLI installation observation is a local CLI surface, not a management API or GUI update permission. See the [read-only observation contract](runtime.md#explicit-codex-cli-installation-observation).

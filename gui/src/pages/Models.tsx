@@ -29,9 +29,11 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import Combos from "./Combos";
 import RoutingProfiles from "./RoutingProfiles";
 import CompatibilityMatrix from "./CompatibilityMatrix";
+import FeatherlessCatalog from "./FeatherlessCatalog";
 import { ModelsTabStrip } from "./models-tab-strip";
 import {
   modelsPanelDomId,
+  SUBTITLE_TKEY,
   modelsTabDomId,
   readModelsTab,
   selectModelsTab,
@@ -92,14 +94,6 @@ type CachedModelsPage = {
   contextCaps: Record<string, number>;
   contextCapValues?: Record<string, number>;
   contextCapValue: number;
-};
-
-/** One subtitle per tab: only one panel is visible, so only one description applies. */
-const SUBTITLE_TKEY: Record<ModelsTab, TKey> = {
-  catalog: "models.subtitle",
-  combos: "models.subtitle.combos",
-  routing: "models.subtitle.routing",
-  compatibility: "models.subtitle.compatibility",
 };
 
 /**
@@ -2651,6 +2645,7 @@ export default function Models({ apiBase, restartEpoch = 0, catalogSyncedAt }: {
         controller={{ restarting: codexRestarting, restart: handleCodexRestart }}
       />
       <ModelsTabStrip tab={tab} onSelect={selectTab} meta={tabMeta} />
+      {tab === "featherless" && <div role="tabpanel" id={modelsPanelDomId("featherless")} aria-labelledby={modelsTabDomId("featherless")}><FeatherlessCatalog apiBase={apiBase} active /></div>}
       {/*
         One summary for the active tab. The catalog also names its delivery states;
         other tabs keep the compact subtitle so their workspaces stay in view.

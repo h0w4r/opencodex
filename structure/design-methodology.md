@@ -1,4 +1,5 @@
 # Design Methodology For New Surfaces
+> Ampliación local: [catálogo Featherless, selección y límites](featherless-catalog.md).
 
 When adding or redesigning a GUI page, CLI wizard, or user-facing flow in opencodex,
 follow the PABCD Catalog Discovery stage ordering (CATALOG-DESIGN-FIRST-01):

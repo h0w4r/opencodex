@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { applyFeatherlessToolProof, classifyFeatherlessModel } from "../../src/providers/featherless-catalog";
-import { parseFeatherlessCapabilityEvidence } from "../../src/providers/featherless-capability-evidence";
+import { fingerprintFeatherlessCapabilityEvidence, parseFeatherlessCapabilityEvidence } from "../../src/providers/featherless-capability-evidence";
 
 const NOW = Date.parse("2026-09-20T20:00:00.000Z");
 
@@ -40,6 +40,15 @@ describe("Evidencia runtime de capacidades Featherless", () => {
     const old = proof({ observedAt: "2026-09-19T19:00:00.000Z", resultSha256: "b".repeat(64) });
     const current = proof();
     expect(parseFeatherlessCapabilityEvidence(file([current, old]), NOW).get(current.modelId)?.resultSha256).toBe("a".repeat(64));
+  });
+
+  test("el fingerprint cambia con pruebas efectivas, no con el orden del archivo", () => {
+    const first = parseFeatherlessCapabilityEvidence(file([proof(), proof({ modelId: "org/second", resultSha256: "b".repeat(64) })]), NOW);
+    const reversed = parseFeatherlessCapabilityEvidence(file([...first.values()].reverse()), NOW);
+    expect(fingerprintFeatherlessCapabilityEvidence(first)).toBe(fingerprintFeatherlessCapabilityEvidence(reversed));
+    const changed = new Map(first);
+    changed.set("org/second", { ...changed.get("org/second")!, resultSha256: "c".repeat(64) });
+    expect(fingerprintFeatherlessCapabilityEvidence(changed)).not.toBe(fingerprintFeatherlessCapabilityEvidence(first));
   });
 
   test("corrige el falso negativo de tools sin eludir la restricción de parámetros", () => {

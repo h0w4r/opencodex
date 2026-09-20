@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { getConfigDir } from "../config/paths";
 import { atomicWriteFileAsync } from "../config/atomic-write";
 import { FEATHERLESS_EXCEPTION, applyFeatherlessToolProof, classifyFeatherlessModel, fetchFeatherlessSourcePage, featherlessSearchUrl, type FeatherlessModel, type FeatherlessPage } from "./featherless-catalog";
-import { loadFeatherlessCapabilityEvidence, type FeatherlessCapabilityProof } from "./featherless-capability-evidence";
+import { fingerprintFeatherlessCapabilityEvidence, loadFeatherlessCapabilityEvidence, type FeatherlessCapabilityProof } from "./featherless-capability-evidence";
 import { parameterBucket, queryFeatherlessIndex } from "./featherless-index-query";
 
-const POLICY = "16B-or-declared-exception-and-declared-or-runtime-tools-v5";
+const BASE_POLICY = "16B-or-declared-exception-and-declared-or-runtime-tools-v5";
 const TTL = 6 * 60 * 60 * 1000;
 // Estos términos encuentran nombres que carecen de etiquetas; el clasificador
 // sigue validando el nombre específico y nunca acepta por coincidencia del autor.
@@ -29,7 +29,7 @@ function variant(input: URLSearchParams): URLSearchParams {
   return params;
 }
 
-async function build(parameters: URLSearchParams, state: State): Promise<Snapshot> {
+async function build(parameters: URLSearchParams, state: State, proofs: Map<string, FeatherlessCapabilityProof>, policy: string): Promise<Snapshot> {
   const accepted = new Map<string, FeatherlessModel>();
   const plans: Array<{ query: URLSearchParams; min?: number }> = [];
   const buckets = new Set<string>();
@@ -72,13 +72,13 @@ async function build(parameters: URLSearchParams, state: State): Promise<Snapsho
   const failure = workers.find((result): result is PromiseRejectedResult => result.status === "rejected");
   if (failure) throw failure.reason;
   state.progress.phase = "runtime-evidence";
-  const proofs = [...loadFeatherlessCapabilityEvidence().values()];
+  const runtimeProofs = [...proofs.values()];
   // La lista probada suele ser pequeña; dos lectores evitan una ráfaga contra
   // el endpoint de detalle y no recorren el catálogo general de 49.000 modelos.
   let proofCursor = 0;
   const proofWorkers = await Promise.allSettled([0, 1].map(async () => {
-    while (proofCursor < proofs.length) {
-      const proof = proofs[proofCursor++];
+    while (proofCursor < runtimeProofs.length) {
+      const proof = runtimeProofs[proofCursor++];
       const model = await fetchProvenModel(proof);
       if (model && !accepted.has(model.id)) accepted.set(model.id, model);
       state.progress.admitted = accepted.size;
@@ -95,7 +95,7 @@ async function build(parameters: URLSearchParams, state: State): Promise<Snapsho
     popular[rank].tags.popularity_level = [String(quantile < .02 ? 5 : quantile < .1 ? 4 : quantile < .3 ? 3 : quantile < .6 ? 2 : quantile < .85 ? 1 : 0)];
   }
   state.progress.phase = "ready";
-  return { policy: POLICY, at: new Date().toISOString(), models, sourcePages: state.progress.pages };
+  return { policy, at: new Date().toISOString(), models, sourcePages: state.progress.pages };
 }
 
 async function fetchProvenModel(proof: FeatherlessCapabilityProof): Promise<FeatherlessModel | undefined> {
@@ -109,12 +109,14 @@ async function fetchProvenModel(proof: FeatherlessCapabilityProof): Promise<Feat
     && (model.reason === "parameters" || model.reason === "exception") ? model : undefined;
 }
 
-function stateFor(input: URLSearchParams): { state: State; path: string; parameters: URLSearchParams } {
+function stateFor(input: URLSearchParams): { state: State; path: string; parameters: URLSearchParams; proofs: Map<string, FeatherlessCapabilityProof> } {
   const parameters = variant(input);
-  const key = `${getConfigDir()}:${parameters}`;
+  const proofs = loadFeatherlessCapabilityEvidence();
+  const policy = `${BASE_POLICY}:${fingerprintFeatherlessCapabilityEvidence(proofs)}`;
+  const key = `${getConfigDir()}:${parameters}:${policy}`;
   let state = states.get(key);
   const cacheDir = join(getConfigDir(), "featherless-catalog");
-  const hash = createHash("sha256").update(POLICY + parameters).digest("hex").slice(0, 24);
+  const hash = createHash("sha256").update(policy + parameters).digest("hex").slice(0, 24);
   const path = join(cacheDir, `${hash}.json`);
   if (!state) {
     if (states.size >= 8) {
@@ -126,7 +128,7 @@ function stateFor(input: URLSearchParams): { state: State; path: string; paramet
     if (existsSync(path)) {
       try {
         const stored = JSON.parse(readFileSync(path, "utf8")) as Snapshot;
-        if (stored.policy === POLICY && Array.isArray(stored.models) && Number.isFinite(Date.parse(stored.at))
+        if (stored.policy === policy && Array.isArray(stored.models) && Number.isFinite(Date.parse(stored.at))
           && stored.models.every(m => m.toolUse === true && (m.reason === "parameters" || m.reason === "exception"))) state.snapshot = stored;
       } catch { /* Una caché dañada se reconstruye; nunca se entrega como catálogo válido. */ }
     }
@@ -135,14 +137,14 @@ function stateFor(input: URLSearchParams): { state: State; path: string; paramet
   if (!state.flight && (!state.snapshot || Date.now() - Date.parse(state.snapshot.at) > TTL) && (!state.failedAt || Date.now() - state.failedAt > 60000)) {
     const current = state;
     current.progress = { pages: 0, admitted: 0, phase: "starting" };
-    current.flight = build(parameters, current).then(async snapshot => {
+    current.flight = build(parameters, current, proofs, policy).then(async snapshot => {
       mkdirSync(cacheDir, { recursive: true });
       await atomicWriteFileAsync(path, JSON.stringify(snapshot));
       current.snapshot = snapshot; current.error = undefined; current.failedAt = undefined;
     }).catch(error => { current.error = error instanceof Error ? error.message : "Falló la actualización del catálogo admitido."; current.failedAt = Date.now(); })
       .finally(() => { current.flight = undefined; });
   }
-  return { state, path, parameters };
+  return { state, path, parameters, proofs };
 }
 
 /** Los contadores, facetas y páginas sólo conocen el conjunto previamente admitido. */
@@ -160,7 +162,7 @@ export async function fetchFeatherlessPage(input: URLSearchParams): Promise<Feat
 
 /** La selección sólo admite IDs del índice; una URL manipulada no amplía restricciones. */
 export async function findFeatherlessModel(id: string): Promise<FeatherlessModel | undefined> {
-  const { state } = stateFor(new URLSearchParams());
+  const { state, proofs } = stateFor(new URLSearchParams());
   if (!state.snapshot && state.flight) await state.flight;
   if (!state.snapshot) throw new Error(state.error ?? "Catálogo admitido aún no disponible.");
   if (!state.snapshot.models.some(model => model.id === id)) return undefined;
@@ -171,7 +173,7 @@ export async function findFeatherlessModel(id: string): Promise<FeatherlessModel
   if (response.status === 404) return undefined;
   if (!response.ok) throw new Error(`Metadatos de selección: HTTP ${response.status}.`);
   let model = classifyFeatherlessModel(await response.json());
-  const proof = loadFeatherlessCapabilityEvidence().get(id);
+  const proof = proofs.get(id);
   if (proof) model = applyFeatherlessToolProof(model, `runtime:${proof.transport}:${proof.observedAt}`);
   return model.id === id && (model.reason === "parameters" || model.reason === "exception") ? model : undefined;
 }

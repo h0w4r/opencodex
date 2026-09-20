@@ -1,3 +1,8 @@
+> **Fork con catálogo Featherless restringido:** esta rama añade restricciones
+> obligatorias de admisión, índice persistente y navegación del catálogo admitido.
+> Consulta [instalación y actualización de este fork](FORK.md). El paquete npm
+> oficial mostrado en la documentación original de abajo **no incluye estos cambios**.
+
 <h3 align="center">make codex open!</h3>
 <p align="center"><b>Universal provider proxy for OpenAI Codex, Claude Code, Claude Desktop &amp; Grok Build</b><br>
 Two commands, and every one of them runs any LLM you point it at.</p>

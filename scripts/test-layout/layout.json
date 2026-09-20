@@ -167,6 +167,7 @@
     }
   },
   "explicit": {
+    "featherless-capability-evidence.test.ts": "providers",
     "featherless-catalog-policy.test.ts": "providers",
     "featherless-index-query.test.ts": "providers",
     "server-combo-held-response.test.ts": "server",

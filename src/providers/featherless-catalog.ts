@@ -133,6 +133,16 @@ export function featherlessSourceUrl(input: URLSearchParams, bounds: { min?: num
   if (bounds.max !== undefined) sourceUrl.searchParams.set("parameter_size_max", String(bounds.max));
   return sourceUrl;
 }
+
+/**
+ * Una prueba runtime vigente corrige metadatos negativos o ausentes, pero no
+ * omite el umbral de tamaño ni las excepciones declaradas por el publicador.
+ */
+export function applyFeatherlessToolProof(model: FeatherlessModel, label: string): FeatherlessModel {
+  const reason = model.parameterSize !== null && model.parameterSize >= FEATHERLESS_MIN_PARAMETERS ? "parameters"
+    : model.evidence.length ? "exception" : model.parameterSize === null ? "unknown" : "excluded";
+  return { ...model, toolUse: true, reason, toolEvidence: [...model.toolEvidence, label] };
+}
 export async function fetchFeatherlessSourcePage(input: URLSearchParams, bounds: { min?: number; max?: number } = {}): Promise<FeatherlessPage> {
   const url = featherlessSourceUrl(input, bounds).href;
   const hit = pages.get(url);

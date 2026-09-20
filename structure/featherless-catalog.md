@@ -82,7 +82,9 @@ Las pruebas runtime se guardan en
 fecha de observación, vencimiento y hash SHA-256 del resultado sanitizado. Un
 archivo ausente, dañado, vencido o dirigido a otro endpoint no admite modelos.
 La selección vuelve a leer la prueba y los metadatos: un snapshot antiguo no
-mantiene autorización después de que la evidencia venza.
+mantiene autorización después de que la evidencia venza. Un fingerprint estable
+de las pruebas forma parte de la versión del snapshot, por lo que incorporar o
+retirar evidencia invalida el índice inmediatamente sin esperar las seis horas.
 
 La búsqueda y las facetas habituales no hacen llamadas remotas tras indexar.
 Las vistas de tendencia, valoración, exclusividad y prioridad de modelos cargados

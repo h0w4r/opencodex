@@ -17,6 +17,8 @@ describe("Política transversal del catálogo Featherless", () => {
     expect(row("uncensored-org/ordinary-8B", 8e9).reason).toBe("excluded");
     expect(row("org/special", 1e9, { domains: ["security"] }).reason).toBe("exception");
     expect(row("org/ordinary", 1e9, { license: ["security"] }).reason).toBe("excluded");
+    expect(row("org/ordinary", 1e9, { license: ["unrestricted"] }).reason).toBe("excluded");
+    expect(row("org/ordinary", 1e9, { family: ["uncensored"] }).reason).toBe("excluded");
     expect(row("org/mystery", undefined, { training: ["abliterated"] }).reason).toBe("exception");
   });
   test("conserva paginación arbitraria y filtros múltiples sin abrir destinos arbitrarios", () => {

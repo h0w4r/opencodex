@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { fetchFeatherlessPage, isFeatherlessCatalogProvider, type FeatherlessModel } from "../../providers/featherless-catalog";
+import { fetchFeatherlessPage, findFeatherlessModel, isFeatherlessCatalogProvider, type FeatherlessModel } from "../../providers/featherless-catalog";
 import { saveConfigPreservingClaudeCode } from "../../config";
 import { clearModelCache } from "../../codex/model-cache";
 import { routedSlug, slugEquals, encodedModelIdCollides } from "../../providers/slug-codec";
@@ -37,8 +37,7 @@ export async function handleFeatherlessRoutes(ctx: ManagementContext): Promise<R
   try {
     let model: FeatherlessModel | undefined;
     if (enabled) {
-      const page = await fetchFeatherlessPage(new URLSearchParams({ query: id }));
-      model = page.items.find(m => m.id === id);
+      model = await findFeatherlessModel(id);
       if (!model) return jsonResponse({ error: "El modelo no tiene evidencia verificable que cumpla la política de 16B/excepciones." }, 422, req, config);
     }
     // Revalida después del await: no reintroduce un proveedor borrado concurrentemente.

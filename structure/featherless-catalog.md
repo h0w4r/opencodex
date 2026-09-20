@@ -72,7 +72,9 @@ global con un timeout total oculto.
 
 `POST /api/featherless/selection` recibe `provider`, `id` y `enabled`. Al habilitar:
 
-1. Reconsulta el identificador y verifica la regla de inclusión.
+1. Reconsulta el identificador recorriendo todas las páginas de la búsqueda si
+   existen muchos derivados, y verifica la regla de inclusión. Etiquetas de
+   licencia/familia no acreditan una excepción de descensura.
 2. Revalida que el proveedor siga usando el destino oficial y `openai-chat`.
 3. Comprueba colisiones mediante el codec canónico de slugs.
 4. Registra sólo ese modelo en `OcxConfig.customModels` con el ID upstream exacto.

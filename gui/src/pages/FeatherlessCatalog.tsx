@@ -79,7 +79,7 @@ export default function FeatherlessCatalog({ apiBase, active }: { apiBase: strin
     <div className="fl-toolbar">
       <input type="search" aria-label={t("fl.searchLabel")} placeholder={t("fl.search")} value={search} onChange={e => setSearch(e.target.value)} />
       <label>{t("fl.sort")}<select value={query.get("sort") ?? SORTS[0][0]} onChange={e => change("sort", e.target.value)}>{SORTS.map(([value, key]) => <option key={value} value={value}>{t(key)}</option>)}</select></label>
-      <button type="button" onClick={() => { setSearch(""); setQuery(new URLSearchParams()); }}>{t("fl.reset")}</button>
+      <button type="button" onClick={() => { setSearch(""); setPageInput("1"); setQuery(new URLSearchParams()); }}>{t("fl.reset")}</button>
     </div>
     <button type="button" className="fl-filter-toggle" aria-expanded={filtersOpen} aria-controls="featherless-filter-panel" onClick={() => setFiltersOpen(v => !v)}>{t("fl.showFilters")}</button>
     <div className="fl-layout">

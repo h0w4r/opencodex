@@ -53,6 +53,8 @@ export function classifyFeatherlessModel(value: unknown): FeatherlessModel {
   if (typeof row.license === "string") tags.license = [row.license];
   const evidence: string[] = [];
   for (const [key, values] of Object.entries(tags)) for (const tag of values) {
+    // Una licencia unrestricted o una familia con nombre parecido no acredita descensura.
+    if (!["training", "domains", "capabilities", "content_flags", "tags"].includes(key)) continue;
     if (EXCEPTION.test(tag) || (key === "domains" && tag === "security")) evidence.push(`${key}:${tag}`);
   }
   // El namespace de un autor no demuestra especialización de todos sus modelos.
@@ -138,4 +140,16 @@ export async function fetchFeatherlessPage(input: URLSearchParams): Promise<Feat
   })();
   flights.set(url, flight);
   try { return await flight; } finally { flights.delete(url); }
+}
+
+/** Una búsqueda exacta puede tener cientos de derivados: no repite el recorte en el botón Habilitar. */
+export async function findFeatherlessModel(id: string): Promise<FeatherlessModel | undefined> {
+  const query = new URLSearchParams({ query: id });
+  for (let page = 1; ; page++) {
+    query.set("page", String(page));
+    const result = await fetchFeatherlessPage(query);
+    const model = result.items.find(item => item.id === id);
+    if (model) return model;
+    if (page >= result.pagination.total_pages) return undefined;
+  }
 }

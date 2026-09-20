@@ -1668,7 +1668,8 @@
     "release-resume-identity.test.ts": "ci-workflows",
     "update-bun-ownership-lease.test.ts": "update",
     "featherless-catalog-policy.test.ts": "providers",
-    "featherless-index-query.test.ts": "providers"
+    "featherless-index-query.test.ts": "providers",
+    "featherless-capability-evidence.test.ts": "providers"
   },
   "migrated": [
     "adapters",

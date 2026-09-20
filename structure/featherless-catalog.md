@@ -36,11 +36,13 @@ no reconocidas ni información que el proveedor omita o publique incorrectamente
 
 No se impone un mínimo de contexto. Es obligatorio además que el proveedor
 declare tool calling mediante `supports_tool_calling=true` o
-`features.tool_use=true`. Un valor negativo prevalece ante contradicciones.
-Sin indicadores booleanos verificables se excluye el modelo; las etiquetas
-`agent`, `instruct`, nombres o familias no sustituyen esos indicadores.
-Las excepciones de tamaño no omiten este requisito. Los MCPs y las skills
-pertenecen al harness: no se afirma que el catálogo acredite cada integración.
+`features.tool_use=true`, o que exista una prueba runtime vigente de un recorrido
+streaming completo de herramienta y devolución de resultado. Un valor negativo
+prevalece ante metadatos contradictorios, pero no ante esa evidencia operativa.
+Sin indicador ni prueba se excluye el modelo; las etiquetas `agent`, `instruct`,
+nombres o familias sólo priorizan revisión y no sustituyen la prueba. Las
+excepciones de tamaño no omiten este requisito. Los MCPs y las skills pertenecen
+al harness: no se afirma que el catálogo acredite cada integración.
 
 ## Paginación, filtros y eficiencia
 
@@ -58,7 +60,10 @@ El índice persistente recupera primero el conjunto >=16B con
 numéricos de esa API se expresan en miles de millones. Después recupera únicamente
 conjuntos de excepción (etiquetas especializadas y consultas por nombre), siempre
 con herramientas exigidas en origen. Deduplica IDs y verifica los indicadores
-antes de persistir. No recorre las 49.000 entradas generales.
+antes de persistir. Finalmente, `src/providers/featherless-capability-evidence.ts`
+lee pruebas locales sanitizadas y vigentes, reconsulta sólo esos IDs por el API
+de detalle y agrega los falsos negativos confirmados. No recorre las 49.000
+entradas generales ni convierte descripciones en capacidades.
 
 `src/providers/featherless-index.ts` publica sólo snapshots completos de la
 política vigente. `src/providers/featherless-index-query.ts` aplica los filtros
@@ -71,6 +76,13 @@ La GUI muestra esos contadores y consulta progreso, sin un porcentaje inventado.
 La caché dura seis horas y se guarda atómicamente bajo OPENCODEX_HOME. Un cambio
 de versión de política invalida cachés anteriores. Al refrescar se conserva el
 último snapshot completo con fecha/error explícitos; nunca uno a medio construir.
+
+Las pruebas runtime se guardan en
+`featherless-catalog/capability-evidence.json`, con proveedor oficial, transporte,
+fecha de observación, vencimiento y hash SHA-256 del resultado sanitizado. Un
+archivo ausente, dañado, vencido o dirigido a otro endpoint no admite modelos.
+La selección vuelve a leer la prueba y los metadatos: un snapshot antiguo no
+mantiene autorización después de que la evidencia venza.
 
 La búsqueda y las facetas habituales no hacen llamadas remotas tras indexar.
 Las vistas de tendencia, valoración, exclusividad y prioridad de modelos cargados

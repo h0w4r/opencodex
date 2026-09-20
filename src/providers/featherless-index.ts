@@ -4,10 +4,11 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getConfigDir } from "../config/paths";
 import { atomicWriteFileAsync } from "../config/atomic-write";
-import { FEATHERLESS_EXCEPTION, classifyFeatherlessModel, fetchFeatherlessSourcePage, featherlessSearchUrl, type FeatherlessModel, type FeatherlessPage } from "./featherless-catalog";
+import { FEATHERLESS_EXCEPTION, applyFeatherlessToolProof, classifyFeatherlessModel, fetchFeatherlessSourcePage, featherlessSearchUrl, type FeatherlessModel, type FeatherlessPage } from "./featherless-catalog";
+import { loadFeatherlessCapabilityEvidence, type FeatherlessCapabilityProof } from "./featherless-capability-evidence";
 import { parameterBucket, queryFeatherlessIndex } from "./featherless-index-query";
 
-const POLICY = "16B-or-declared-exception-and-explicit-tools-v4";
+const POLICY = "16B-or-declared-exception-and-declared-or-runtime-tools-v5";
 const TTL = 6 * 60 * 60 * 1000;
 // Estos términos encuentran nombres que carecen de etiquetas; el clasificador
 // sigue validando el nombre específico y nunca acepta por coincidencia del autor.
@@ -70,6 +71,21 @@ async function build(parameters: URLSearchParams, state: State): Promise<Snapsho
   }));
   const failure = workers.find((result): result is PromiseRejectedResult => result.status === "rejected");
   if (failure) throw failure.reason;
+  state.progress.phase = "runtime-evidence";
+  const proofs = [...loadFeatherlessCapabilityEvidence().values()];
+  // La lista probada suele ser pequeña; dos lectores evitan una ráfaga contra
+  // el endpoint de detalle y no recorren el catálogo general de 49.000 modelos.
+  let proofCursor = 0;
+  const proofWorkers = await Promise.allSettled([0, 1].map(async () => {
+    while (proofCursor < proofs.length) {
+      const proof = proofs[proofCursor++];
+      const model = await fetchProvenModel(proof);
+      if (model && !accepted.has(model.id)) accepted.set(model.id, model);
+      state.progress.admitted = accepted.size;
+    }
+  }));
+  const proofFailure = proofWorkers.find((result): result is PromiseRejectedResult => result.status === "rejected");
+  if (proofFailure) throw proofFailure.reason;
   const models = [...accepted.values()];
   for (const model of models) model.tags.parameter_bucket = parameterBucket(model.parameterSize, [...buckets]);
   // Popularidad se calcula dentro del universo admitido, no entre 49.000 modelos.
@@ -80,6 +96,17 @@ async function build(parameters: URLSearchParams, state: State): Promise<Snapsho
   }
   state.progress.phase = "ready";
   return { policy: POLICY, at: new Date().toISOString(), models, sourcePages: state.progress.pages };
+}
+
+async function fetchProvenModel(proof: FeatherlessCapabilityProof): Promise<FeatherlessModel | undefined> {
+  const response = await fetch(`https://api.featherless.ai/v1/models/${proof.modelId.split("/").map(encodeURIComponent).join("/")}`,
+    { redirect: "error", signal: AbortSignal.timeout(30000) });
+  if (response.status === 404) return undefined;
+  if (!response.ok) throw new Error(`Metadatos de evidencia runtime: HTTP ${response.status}.`);
+  const model = applyFeatherlessToolProof(classifyFeatherlessModel(await response.json()),
+    `runtime:${proof.transport}:${proof.observedAt}`);
+  return model.id === proof.modelId && model.status === "active"
+    && (model.reason === "parameters" || model.reason === "exception") ? model : undefined;
 }
 
 function stateFor(input: URLSearchParams): { state: State; path: string; parameters: URLSearchParams } {
@@ -143,7 +170,9 @@ export async function findFeatherlessModel(id: string): Promise<FeatherlessModel
     { redirect: "error", signal: AbortSignal.timeout(30000) });
   if (response.status === 404) return undefined;
   if (!response.ok) throw new Error(`Metadatos de selección: HTTP ${response.status}.`);
-  const model = classifyFeatherlessModel(await response.json());
+  let model = classifyFeatherlessModel(await response.json());
+  const proof = loadFeatherlessCapabilityEvidence().get(id);
+  if (proof) model = applyFeatherlessToolProof(model, `runtime:${proof.transport}:${proof.observedAt}`);
   return model.id === id && (model.reason === "parameters" || model.reason === "exception") ? model : undefined;
 }
 

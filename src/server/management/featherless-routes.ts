@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { fetchFeatherlessPage, findFeatherlessModel, isFeatherlessCatalogProvider, type FeatherlessModel } from "../../providers/featherless-catalog";
+import { fetchFeatherlessPage, findFeatherlessModel, FeatherlessIndexPending } from "../../providers/featherless-index";
+import { isFeatherlessCatalogProvider, type FeatherlessModel } from "../../providers/featherless-catalog";
 import { saveConfigPreservingClaudeCode } from "../../config";
 import { clearModelCache } from "../../codex/model-cache";
 import { routedSlug, slugEquals, encodedModelIdCollides } from "../../providers/slug-codec";
@@ -21,6 +22,7 @@ export async function handleFeatherlessRoutes(ctx: ManagementContext): Promise<R
         .map(m => m.modelId)]));
       return jsonResponse({ ...page, providers, enabled }, 200, req, config);
     } catch (error) {
+      if (error instanceof FeatherlessIndexPending) return jsonResponse({ pending: true, progress: error.progress }, 202, req, config);
       return jsonResponse({ error: error instanceof Error ? error.message : "No se pudo consultar Featherless." }, 502, req, config);
     }
   }
@@ -38,7 +40,7 @@ export async function handleFeatherlessRoutes(ctx: ManagementContext): Promise<R
     let model: FeatherlessModel | undefined;
     if (enabled) {
       model = await findFeatherlessModel(id);
-      if (!model) return jsonResponse({ error: "El modelo no tiene evidencia verificable que cumpla la política de 16B/excepciones." }, 422, req, config);
+      if (!model) return jsonResponse({ error: "El modelo debe declarar tool calling y cumplir la política de 16B/excepciones. El tamaño, nombre o especialización no sustituyen el soporte de herramientas." }, 422, req, config);
     }
     // Revalida después del await: no reintroduce un proveedor borrado concurrentemente.
     const current = config.providers[provider];

@@ -2,7 +2,7 @@
 export async function runJourney({ page, expect, record, viewport }) {
   const search = page.getByRole('searchbox', { name: 'Buscar modelos Featherless' });
   const status = page.locator('.fl-results [role=status]');
-  await expect(status).toContainText('coincidencias en Featherless');
+  await expect(status).toContainText('modelos admitidos');
   record({ fase: 'catalogo-publico', viewport, estado: await status.innerText() });
   const filterToggle = page.getByRole('button', { name: 'Filtros del catálogo', exact: true });
   if (viewport === 'mobile') await filterToggle.click();
@@ -19,9 +19,14 @@ export async function runJourney({ page, expect, record, viewport }) {
   await expect(status).toContainText('página 2 de');
   record({ fase: 'pagina-2-no-recortada', estado: await status.innerText() });
   await search.fill('Qwen/Qwen3-0.6B');
-  await expect(page.getByText('Esta página no contiene modelos que cumplan tu regla. Prueba la siguiente página o refina los filtros.', { exact: true })).toBeVisible();
+  await expect(page.getByText('No hay modelos admitidos que coincidan con estos filtros.', { exact: true })).toBeVisible();
   await expect(page.locator('.fl-model')).toHaveCount(0);
   record({ fase: 'modelo-pequeno-excluido', estado: await status.innerText() });
+  // Tamaño suficiente no puede saltarse el requisito de herramientas.
+  await search.fill('google/gemma-3-27b-it');
+  await expect(page.getByText('No hay modelos admitidos que coincidan con estos filtros.', { exact: true })).toBeVisible();
+  await expect(page.locator('.fl-model')).toHaveCount(0);
+  record({ fase: 'modelo-27B-sin-herramientas-excluido' });
   const exception = 'huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated';
   await search.fill(exception);
   await expect(page.getByRole('link', { name: exception, exact: true })).toBeVisible();
@@ -30,6 +35,8 @@ export async function runJourney({ page, expect, record, viewport }) {
   const id = 'Qwen/Qwen3.8-27B';
   await search.fill(id);
   await expect(page.getByRole('link', { name: id, exact: true })).toBeVisible();
+  await expect(page.locator('.fl-policy')).toContainText('Sólo modelos con tool calling');
+  await expect(page.locator('.fl-model').filter({ hasText: id })).toContainText('Tool calling declarado');
   const off = page.getByRole('button', { name: `Deshabilitar: ${id}`, exact: true });
   if (await off.count()) await off.click();
   await page.getByRole('button', { name: `Habilitar: ${id}`, exact: true }).click();

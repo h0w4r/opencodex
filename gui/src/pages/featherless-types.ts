@@ -2,7 +2,7 @@
 export interface FeatherlessRow {
   id: string; parameterSize: number | null; contextLength: number | null;
   toolUse: boolean | null; status: string; tags: Record<string, string[]>;
-  reason: "parameters" | "exception"; evidence: string[];
+  reason: "parameters" | "exception"; evidence: string[]; toolEvidence: string[];
 }
 export interface FeatherlessResult {
   items: FeatherlessRow[];
@@ -10,12 +10,14 @@ export interface FeatherlessResult {
   facets: Record<string, Array<{ value: string; count: number }>>;
   providers: string[]; enabled: Record<string, string[]>;
   inspected: number; excluded: number; unknown: number; fetchedAt: string;
+  toolsUnsupported: number; toolsUnverified: number;
+  catalog: { total: number; refreshing: boolean; error?: string; sourcePages: number };
 }
 /** El query string no incluye secretos; permite conservar navegación al recargar. */
-export const FL_STATE_KEY = "opencodex.featherless.filters.v1";
+export const FL_STATE_KEY = "opencodex.featherless.filters.v2";
 export function initialFeatherlessQuery(): URLSearchParams {
-  try { return new URLSearchParams(sessionStorage.getItem(FL_STATE_KEY) ?? "sort=-trending_rank"); }
-  catch { return new URLSearchParams("sort=-trending_rank"); }
+  try { return new URLSearchParams(sessionStorage.getItem(FL_STATE_KEY) ?? "sort=-downloads"); }
+  catch { return new URLSearchParams("sort=-downloads"); }
 }
 export function compactNumber(value: number | null): string {
   if (value === null) return "—";

@@ -19,7 +19,8 @@ export interface FeatherlessModel {
   downloads: number;
   favorites: number;
   releasedAt: string | null;
-  reason: "parameters" | "exception" | "excluded" | "unknown";
+  reason: "parameters" | "exception" | "excluded" | "unknown" | "tools-unsupported" | "tools-unverified";
+  toolEvidence: string[];
   evidence: string[];
 }
 export interface FeatherlessPage {
@@ -29,6 +30,8 @@ export interface FeatherlessPage {
   inspected: number;
   excluded: number;
   unknown: number;
+  toolsUnsupported: number;
+  toolsUnverified: number;
   fetchedAt: string;
   source: string;
 }
@@ -37,7 +40,7 @@ const record = (value: unknown): Record<string, unknown> => value && typeof valu
 const positive = (value: unknown): number | null => typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
 const texts = (value: unknown): string[] => Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 // Los términos son evidencia declarada, no una garantía sobre el comportamiento o las capacidades.
-const EXCEPTION = /(?:^|[^a-z0-9])(?:uncensored|unfiltered|abliterat(?:ed|ion|ing|e)?|obliterat(?:ed|ion|ing|e)?|de[-_ ]?censored|decensor(?:ed)?|de[-_ ]?restricted|unrestricted|de[-_ ]?aligned|refusal[-_ ]?(?:removed|removal|free)|no[-_ ]?refusals?|anti[-_ ]?refusal|jailbroken|cyber[-_ ]?security|cybersec|cyber[-_ ]?(?:defense|defence)|pentest(?:ing)?|penetration[-_ ]?testing|offensive[-_ ]?security|offsec|vulnerability[-_ ]?(?:detection|analysis)|malware[-_ ]?analysis|red[-_ ]?team(?:ing)?)(?:$|[^a-z0-9])/i;
+export const FEATHERLESS_EXCEPTION = /(?:^|[^a-z0-9])(?:uncensored|unfiltered|abliterat(?:ed|ion|ing|e)?|obliterat(?:ed|ion|ing|e)?|de[-_ ]?censored|decensor(?:ed)?|de[-_ ]?restricted|unrestricted|de[-_ ]?aligned|refusal[-_ ]?(?:removed|removal|free)|no[-_ ]?refusals?|anti[-_ ]?refusal|jailbroken|cyber[-_ ]?security|cybersec|cyber[-_ ]?(?:defense|defence)|pentest(?:ing)?|penetration[-_ ]?testing|offensive[-_ ]?security|offsec|vulnerability[-_ ]?(?:detection|analysis)|malware[-_ ]?analysis|red[-_ ]?team(?:ing)?)(?:$|[^a-z0-9])/i;
 
 /** Usa parámetros totales publicados; nunca adivina tamaño a partir de A3B u otro nombre MoE. */
 export function classifyFeatherlessModel(value: unknown): FeatherlessModel {
@@ -55,18 +58,23 @@ export function classifyFeatherlessModel(value: unknown): FeatherlessModel {
   for (const [key, values] of Object.entries(tags)) for (const tag of values) {
     // Una licencia unrestricted o una familia con nombre parecido no acredita descensura.
     if (!["training", "domains", "capabilities", "content_flags", "tags"].includes(key)) continue;
-    if (EXCEPTION.test(tag) || (key === "domains" && tag === "security")) evidence.push(`${key}:${tag}`);
+    if (FEATHERLESS_EXCEPTION.test(tag) || (key === "domains" && tag === "security")) evidence.push(`${key}:${tag}`);
   }
   // El namespace de un autor no demuestra especialización de todos sus modelos.
   const name = row.id.substring(row.id.indexOf("/") + 1);
-  if (EXCEPTION.test(name)) evidence.push(`model-name:${name}`);
-  const reason = parameterSize !== null && parameterSize >= FEATHERLESS_MIN_PARAMETERS ? "parameters"
+  if (FEATHERLESS_EXCEPTION.test(name)) evidence.push(`model-name:${name}`);
+  // Un no explícito prevalece ante metadatos contradictorios. Nombres, familias y
+  // etiquetas genéricas de agente no prueban que el transporte soporte tools.
+  const flags = [["supports_tool_calling", row.supports_tool_calling], ["features.tool_use", record(row.features).tool_use]] as const;
+  const declared = flags.filter(([, value]) => typeof value === "boolean");
+  const toolUse = declared.some(([, value]) => value === false) ? false : declared.some(([, value]) => value === true) ? true : null;
+  const toolEvidence = declared.map(([key, value]) => `${key}:${value}`);
+  const reason = toolUse === false ? "tools-unsupported" : toolUse === null ? "tools-unverified"
+    : parameterSize !== null && parameterSize >= FEATHERLESS_MIN_PARAMETERS ? "parameters"
     : evidence.length ? "exception" : parameterSize === null ? "unknown" : "excluded";
   return {
-    id: row.id, parameterSize, reason, evidence, tags,
+    id: row.id, parameterSize, reason, evidence, tags, toolUse, toolEvidence,
     contextLength: positive(row.context_length) ?? positive(modelClass.context_length),
-    toolUse: typeof row.supports_tool_calling === "boolean" ? row.supports_tool_calling
-      : typeof record(row.features).tool_use === "boolean" ? record(row.features).tool_use as boolean : null,
     status: typeof row.status === "string" ? row.status : "unknown",
     inputModalities: texts(row.input_modalities ?? modelClass.input_modalities),
     downloads: positive(row.downloads) ?? 0, favorites: positive(row.favorites) ?? 0,
@@ -93,6 +101,9 @@ export function featherlessSearchUrl(input: URLSearchParams): URL {
     if (values.length > 50 || values.some(v => !v || v.length > 100)) throw new Error("Filtro inválido.");
     for (const value of values) url.searchParams.append(key, value);
   }
+  // Filtra en origen para no paginar por miles de chatbots. La comprobación
+  // local de flags sigue siendo obligatoria aunque el proveedor combine facetas con OR.
+  if (!url.searchParams.getAll("capabilities").includes("tool-use")) url.searchParams.append("capabilities", "tool-use");
   for (const key of ["featherless_exclusive", "trending"]) if (input.get(key) === "true") url.searchParams.set(key, "true");
   const recency = input.get("release_recency");
   if (recency) {
@@ -107,8 +118,23 @@ export function featherlessSearchUrl(input: URLSearchParams): URL {
 // Caché acotada y solicitudes concurrentes deduplicadas; la página 501 no queda prohibida por ningún top-N local.
 const pages = new Map<string, { expires: number; value: FeatherlessPage }>();
 const flights = new Map<string, Promise<FeatherlessPage>>();
-export async function fetchFeatherlessPage(input: URLSearchParams): Promise<FeatherlessPage> {
-  const url = featherlessSearchUrl(input).href;
+export function featherlessSourceUrl(input: URLSearchParams, bounds: { min?: number; max?: number } = {}): URL {
+  const sourceUrl = featherlessSearchUrl(input);
+  // La búsqueda del sitio expresa estos límites en miles de millones, no en unidades.
+  sourceUrl.searchParams.set("supports_tool_calling", "true");
+  // La API combina valores de una misma faceta con OR. No unir una excepción
+  // con tool-use: ampliaría la consulta a todos los modelos con herramientas.
+  // El booleano de arriba impone tools de forma independiente (AND).
+  if (input.has("capabilities")) {
+    sourceUrl.searchParams.delete("capabilities");
+    for (const value of input.getAll("capabilities")) sourceUrl.searchParams.append("capabilities", value);
+  }
+  if (bounds.min !== undefined) sourceUrl.searchParams.set("parameter_size_min", String(bounds.min));
+  if (bounds.max !== undefined) sourceUrl.searchParams.set("parameter_size_max", String(bounds.max));
+  return sourceUrl;
+}
+export async function fetchFeatherlessSourcePage(input: URLSearchParams, bounds: { min?: number; max?: number } = {}): Promise<FeatherlessPage> {
+  const url = featherlessSourceUrl(input, bounds).href;
   const hit = pages.get(url);
   if (hit && hit.expires > Date.now()) return hit.value;
   const existing = flights.get(url);
@@ -133,6 +159,7 @@ export async function fetchFeatherlessPage(input: URLSearchParams): Promise<Feat
     const value: FeatherlessPage = { items: all.filter(m => m.reason === "parameters" || m.reason === "exception"),
       pagination: pagination as unknown as FeatherlessPage["pagination"], facets, inspected: all.length,
       excluded: all.filter(m => m.reason === "excluded").length, unknown: all.filter(m => m.reason === "unknown").length,
+      toolsUnsupported: all.filter(m => m.reason === "tools-unsupported").length, toolsUnverified: all.filter(m => m.reason === "tools-unverified").length,
       fetchedAt: new Date().toISOString(), source: url };
     pages.delete(url); pages.set(url, { expires: Date.now() + 120000, value });
     while (pages.size > 64) pages.delete(pages.keys().next().value!);
@@ -140,16 +167,4 @@ export async function fetchFeatherlessPage(input: URLSearchParams): Promise<Feat
   })();
   flights.set(url, flight);
   try { return await flight; } finally { flights.delete(url); }
-}
-
-/** Una búsqueda exacta puede tener cientos de derivados: no repite el recorte en el botón Habilitar. */
-export async function findFeatherlessModel(id: string): Promise<FeatherlessModel | undefined> {
-  const query = new URLSearchParams({ query: id });
-  for (let page = 1; ; page++) {
-    query.set("page", String(page));
-    const result = await fetchFeatherlessPage(query);
-    const model = result.items.find(item => item.id === id);
-    if (model) return model;
-    if (page >= result.pagination.total_pages) return undefined;
-  }
 }

@@ -1,9 +1,11 @@
+import { featherlessCopy } from "./featherless-copy";
 import type { TKey } from "./en";
 
 /**
  * Chinese i18n catalog; must match the `TKey` set (compile-checked).
  */
 export const zh: Record<TKey, string> = {
+  ...featherlessCopy,
   "tray.updated": "更新于 {time} · 每60秒",
   "tray.today": "今天",
   "tray.input": "输入",
@@ -3111,3 +3113,4 @@ export const zh: Record<TKey, string> = {
   "remote.event.tool": "远程工具",
   "remote.event.error": "错误",
 };
+

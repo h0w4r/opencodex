@@ -1,4 +1,5 @@
 # Runtime
+> Ampliación local: [catálogo Featherless, selección y límites](featherless-catalog.md).
 
 ## Resolved static model policy
 

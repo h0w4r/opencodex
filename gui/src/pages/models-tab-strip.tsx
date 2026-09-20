@@ -17,6 +17,7 @@ import {
 } from "./models-tab";
 
 const TAB_LABEL: Record<ModelsTab, TKey> = {
+  featherless: "models.tab.featherless",
   catalog: "models.tab.catalog",
   combos: "models.tab.combos",
   routing: "models.tab.routing",

@@ -1,4 +1,5 @@
 # Docs And Release
+> Ampliación local: [catálogo Featherless, selección y límites](../featherless-catalog.md).
 
 macOS shards and control use the shared fresh-process batch runner described below.
 `scripts/ci/sample-macos-stall.sh` remains a standalone diagnostic helper with isolated

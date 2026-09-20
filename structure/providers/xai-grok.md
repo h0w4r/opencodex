@@ -1,4 +1,5 @@
 # xAI Grok Provider
+> Ampliación local: [catálogo Featherless, selección y límites](../featherless-catalog.md).
 
 The Grok client picker forwards the `meta-muse` catalog's `max` effort through its existing managed-block export; this follows the [Muse provider contract](../providers-and-adapters.md).
 

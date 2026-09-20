@@ -1,3 +1,4 @@
+import { featherlessCopy } from "./featherless-copy";
 // Vietnamese — generated from en.ts. Must match TKey set (compile-checked).
 import type { TKey } from "./en";
 
@@ -6,6 +7,7 @@ import type { TKey } from "./en";
  * Technical terms and model identifiers intentionally remain English.
  */
 export const vi: Record<TKey, string> = {
+  ...featherlessCopy,
   "tray.updated": "Cập nhật {time} · mỗi 60 giây",
   "tray.today": "Hôm nay",
   "tray.input": "Đầu vào",
@@ -3082,3 +3084,4 @@ export const vi: Record<TKey, string> = {
   "models.fastRows.loadFailed": "Không thể tải cài đặt hàng Fast.",
   "models.fastRows.updateFailed": "Không thể cập nhật cài đặt hàng Fast.",
 };
+

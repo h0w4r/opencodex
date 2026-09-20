@@ -65,6 +65,7 @@ import { handleRoutingAnalyticsRoutes } from "./management/routing-analytics-rou
 import { handleMetricsRoutes } from "./management/metrics-routes";
 import { handleProviderRoutes } from "./management/provider-routes";
 import { handleModelRoutes } from "./management/model-routes";
+import { handleFeatherlessRoutes } from "./management/featherless-routes";
 import { handleAgentSettingsRoutes } from "./management/agent-settings-routes";
 import { handleOauthAccountRoutes } from "./management/oauth-account-routes";
 import { handleComboRoutes } from "./management/combo-routes";
@@ -278,6 +279,7 @@ export async function handleManagementAPI(
     ??     (await handleRoutingAnalyticsRoutes(ctx))
     ??     (await handleRoutingProfileRoutesOnDemand(ctx))
     ??     (await handleProviderRoutes(ctx))
+    ??     (await handleFeatherlessRoutes(ctx))
     ??     (await handleModelRoutes(ctx))
     ??     (await handleIntegrationRoutes(ctx))
     ??     (await handleNativeIntegrationRoutes(ctx))

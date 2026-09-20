@@ -1,3 +1,4 @@
+import { featherlessCopy } from "./featherless-copy";
 // Turkish — generated from en.ts. Must match TKey set (compile-checked).
 import type { TKey } from "./en";
 
@@ -5,6 +6,7 @@ import type { TKey } from "./en";
  * Turkish i18n catalog. Must match the `TKey` set (compile-checked).
  */
 export const tr: Record<TKey, string> = {
+  ...featherlessCopy,
   "tray.updated": "Güncellendi {time} · her 60 sn",
   "tray.today": "Bugün",
   "tray.input": "Girdi",
@@ -3113,3 +3115,4 @@ export const tr: Record<TKey, string> = {
   "remote.event.tool": "Uzak araç",
   "remote.event.error": "Hata",
 };
+

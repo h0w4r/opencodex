@@ -1,4 +1,5 @@
 # Providers And Adapters
+> Ampliación local: [catálogo Featherless, selección y límites](featherless-catalog.md).
 
 OrcaRouter key exchange uses the shared raw-byte reader before returning a durable key. Its
 64 KiB response ceiling, single 30-second header/body deadline, and cancellation behavior follow

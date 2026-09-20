@@ -1,3 +1,4 @@
+import { featherlessCopy } from "./featherless-copy";
 // English — source of truth. Its keys define the TKey type; de/fr/ko/zh/zh-TW/ru/ja/tr must match (compile-checked).
 // Strings with {cmd} render a <code> chip via <Trans>; {var} are plain interpolations.
 /**
@@ -6,6 +7,7 @@
  * `{var}` are plain interpolations.
  */
 export const en = {
+  ...featherlessCopy,
   "tray.updated": "Updated {time} · every 60s",
   "tray.today": "Today",
   "tray.input": "Input",
@@ -3126,3 +3128,4 @@ export const en = {
 } as const;
 
 export type TKey = keyof typeof en;
+

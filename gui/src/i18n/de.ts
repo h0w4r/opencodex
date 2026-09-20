@@ -1,3 +1,4 @@
+import { featherlessCopy } from "./featherless-copy";
 // German — generated from en.ts. Must match TKey set (compile-checked).
 import type { TKey } from "./en";
 
@@ -5,6 +6,7 @@ import type { TKey } from "./en";
  * German i18n catalog, generated from en.ts. Must match the `TKey` set (compile-checked).
  */
 export const de: Record<TKey, string> = {
+  ...featherlessCopy,
   "tray.updated": "Aktualisiert {time} · alle 60s",
   "tray.today": "Heute",
   "tray.input": "Eingabe",
@@ -3090,3 +3092,4 @@ export const de: Record<TKey, string> = {
   "remote.event.tool": "Remote-Werkzeug",
   "remote.event.error": "Fehler",
 };
+

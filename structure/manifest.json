@@ -44,6 +44,18 @@
   ],
   "docs": [
     {
+      "documents": [
+        "src/providers/",
+        "src/server/",
+        "gui/",
+        "scripts/"
+      ],
+      "tier": 2,
+      "scope": "Catálogo público paginado, política local y selección explícita.",
+      "path": "featherless-catalog.md",
+      "title": "Explorador Featherless"
+    },
+    {
       "path": "overview.md",
       "tier": 1,
       "title": "Overview",

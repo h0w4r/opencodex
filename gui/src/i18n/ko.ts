@@ -1,9 +1,11 @@
+import { featherlessCopy } from "./featherless-copy";
 import type { TKey } from "./en";
 
 /**
  * Korean i18n catalog; must match the `TKey` set (compile-checked).
  */
 export const ko: Record<TKey, string> = {
+  ...featherlessCopy,
   "tray.updated": "업데이트 {time} · 60초마다",
   "tray.today": "오늘",
   "tray.input": "입력",
@@ -3112,3 +3114,4 @@ export const ko: Record<TKey, string> = {
   "remote.event.tool": "원격 도구",
   "remote.event.error": "오류",
 };
+

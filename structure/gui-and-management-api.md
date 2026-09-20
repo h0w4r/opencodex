@@ -1,4 +1,5 @@
 # GUI And Management API
+> Ampliación local: [catálogo Featherless, selección y límites](featherless-catalog.md).
 
 The companion settings contract in `src/companion/` persists menu-bar and widget display
 preferences, while `src/server/management/companion-routes.ts` exposes those settings and the

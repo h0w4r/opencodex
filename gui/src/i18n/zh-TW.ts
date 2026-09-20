@@ -1,7 +1,9 @@
+import { featherlessCopy } from "./featherless-copy";
 import type { TKey } from "./en";
 
 /** Traditional Chinese (Taiwan) UI strings — keys must match `en.ts` 1:1. */
 export const zhTW: Record<TKey, string> = {
+  ...featherlessCopy,
   "tray.updated": "更新於 {time} · 每60秒",
   "tray.today": "今天",
   "tray.input": "輸入",
@@ -3076,3 +3078,4 @@ export const zhTW: Record<TKey, string> = {
   "remote.event.tool": "遠端工具",
   "remote.event.error": "錯誤",
 };
+

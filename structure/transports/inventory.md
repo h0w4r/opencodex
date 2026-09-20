@@ -1,4 +1,5 @@
 # Transport Inventory
+> Ampliación local: [catálogo Featherless, selección y límites](../featherless-catalog.md).
 
 Meta Muse's registry-owned compatibility User-Agent takes precedence over an incoming client User-Agent; explicit provider headers still win. See the [Muse provider contract](../providers-and-adapters.md).
 

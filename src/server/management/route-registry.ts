@@ -254,6 +254,9 @@ export const MANAGEMENT_ROUTES: readonly ManagementRoute[] = [
   { method: "PUT", path: "/api/storage/cleanup-policy", module: "server/management/logs-usage-routes", mutates: true },
   // server/management/metrics-routes
   { method: "GET", path: "/api/metrics", module: "server/management/metrics-routes", mutates: false, exempt: { reason: "scrape-target", why: "This machine scrape target exposes authenticated text exposition for monitoring systems; a CLI JSON verb would be a different contract." } },
+  // Explorador público independiente de la lista de modelos habilitados.
+  { method: "GET", path: "/api/featherless/models", module: "server/management/featherless-routes", mutates: false },
+  { method: "POST", path: "/api/featherless/selection", module: "server/management/featherless-routes", mutates: true },
   // server/management/model-routes
   { method: "GET", path: "/api/aliases", module: "server/management/model-routes", mutates: false },
   { method: "GET", path: "/api/catalog", module: "server/management/model-routes", mutates: false },
@@ -387,3 +390,4 @@ export const MANAGEMENT_ROUTES: readonly ManagementRoute[] = [
   { method: "GET", path: "/api/lab/artifacts/{digest}", module: "server/management/lab-routes", mutates: false, mechanism: "regex", exempt: { reason: "local-transport", why: "ocx lab reads the same rows from the local SQLite projection; src/cli/lab.ts imports ../lab/query directly and never fetches /api/lab." } },
   { method: "POST", path: "/api/lab/automation/runs/{id}/cancel", module: "server/management/lab-automation-routes", mutates: true, mechanism: "regex", exempt: { reason: "deferred-verb", why: "Lab automation run cancellation has no CLI verb yet. A local SQLite read cannot drive it, so local-transport does not apply.", owner: "wp7", ownerDoc: "devlog/_plan/260828_ocx_agentic_control/060_phase_gui_parity.md" } },
 ];
+

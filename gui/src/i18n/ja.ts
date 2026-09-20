@@ -1,9 +1,11 @@
+import { featherlessCopy } from "./featherless-copy";
 import type { TKey } from "./en";
 
 /**
  * Japanese i18n catalog; must match the `TKey` set (compile-checked).
  */
 export const ja: Record<TKey, string> = {
+  ...featherlessCopy,
   "tray.updated": "更新 {time} · 60秒ごと",
   "tray.today": "今日",
   "tray.input": "入力",
@@ -3111,3 +3113,4 @@ export const ja: Record<TKey, string> = {
   "remote.event.tool": "リモートツール",
   "remote.event.error": "エラー",
 };
+

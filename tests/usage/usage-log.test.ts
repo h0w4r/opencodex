@@ -564,7 +564,7 @@ describe("usage log", () => {
     expect(attempt).not.toHaveProperty("reasoningWireValue");
   });
 
-  test("keeps boolean reasoning values only for reasoning.enabled", () => {
+  test("keeps boolean reasoning values only for declared boolean wire fields", () => {
     const base = {
       requestId: "ocx-boolean-reasoning",
       timestamp: 1,
@@ -605,11 +605,23 @@ describe("usage log", () => {
         reasoningWireValue: false,
       }],
     });
+    const featherless = normalizeUsageEntryForTest({
+      ...base,
+      reasoningWireField: "chat_template_kwargs.enable_thinking",
+      reasoningWireValue: true,
+      attempts: [{
+        ...base.attempts[0],
+        reasoningWireField: "chat_template_kwargs.enable_thinking",
+        reasoningWireValue: true,
+      }],
+    });
 
     expect(mismatched).not.toHaveProperty("reasoningWireValue");
     expect(mismatched.attempts?.[0]).not.toHaveProperty("reasoningWireValue");
     expect(valid.reasoningWireValue).toBe(false);
     expect(valid.attempts?.[0]?.reasoningWireValue).toBe(false);
+    expect(featherless.reasoningWireValue).toBe(true);
+    expect(featherless.attempts?.[0]?.reasoningWireValue).toBe(true);
   });
 
   test("local-answer provenance survives attempt normalization for capacity exclusion", () => {

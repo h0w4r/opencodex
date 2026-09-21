@@ -392,6 +392,26 @@ describe("request log metadata", () => {
     expect(logCtx.reasoningWireValue).toBe(false);
   });
 
+  test("records the Featherless template toggle as a boolean", () => {
+    const attempt = beginRequestAttempt(1, "featherless", "m", "openai-chat");
+    const logCtx: RequestLogContext = { model: "m", provider: "featherless", activeAttempt: attempt };
+    recordAdapterReasoning(logCtx, {
+      url: "https://api.featherless.ai/v1/chat/completions",
+      method: "POST",
+      headers: {},
+      body: "{}",
+      reasoningLog: {
+        effectiveEffort: "none",
+        wireField: "chat_template_kwargs.enable_thinking",
+        wireValue: false,
+      },
+    });
+
+    expect(logCtx.reasoningWireField).toBe("chat_template_kwargs.enable_thinking");
+    expect(logCtx.reasoningWireValue).toBe(false);
+    expect(attempt.reasoningWireValue).toBe(false);
+  });
+
   test("recordFirstOutput is one-shot for request and active attempt (WP4 TTFT)", () => {
     const attempt = beginRequestAttempt(1, "a", "m1", "openai-chat");
     const logCtx: RequestLogContext = {

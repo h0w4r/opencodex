@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { classifyFeatherlessModel, featherlessSearchUrl, featherlessSourceUrl, isFeatherlessCatalogProvider } from "../../src/providers/featherless-catalog";
+import { classifyFeatherlessModel, featherlessSearchUrl, featherlessSourceUrl, fetchFeatherlessWithRetry, isFeatherlessCatalogProvider } from "../../src/providers/featherless-catalog";
 
 describe("Política transversal del catálogo Featherless", () => {
   test("restricciones en origen no amplían excepciones con un OR de toda la faceta tools", () => {
@@ -56,5 +56,23 @@ describe("Política transversal del catálogo Featherless", () => {
   test("no cambia un proveedor retargeteado", () => {
     expect(isFeatherlessCatalogProvider({ adapter: "openai-chat", baseUrl: "https://api.featherless.ai/v1/" })).toBe(true);
     expect(isFeatherlessCatalogProvider({ adapter: "openai-chat", baseUrl: "https://custom.example/v1" })).toBe(false);
+  });
+  test("reintenta errores transitorios sin ocultar un fallo definitivo", async () => {
+    const statuses = [502, 429, 200];
+    const delays: number[] = [];
+    const recovered = await fetchFeatherlessWithRetry("https://api.featherless.ai/example", {}, {
+      fetch: (async () => new Response("{}", { status: statuses.shift()!, headers: { "retry-after": "0" } })) as typeof fetch,
+      sleep: async milliseconds => { delays.push(milliseconds); },
+    });
+    expect(recovered.status).toBe(200);
+    expect(delays).toEqual([0, 0]);
+
+    let calls = 0;
+    const rejected = await fetchFeatherlessWithRetry("https://api.featherless.ai/example", {}, {
+      fetch: (async () => { calls++; return new Response("bad request", { status: 400 }); }) as typeof fetch,
+      sleep: async () => { throw new Error("No debe esperar ante un error definitivo."); },
+    });
+    expect(rejected.status).toBe(400);
+    expect(calls).toBe(1);
   });
 });

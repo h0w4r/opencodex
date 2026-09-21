@@ -782,8 +782,8 @@ function normalizeCodexWsStageRecord(value: unknown): CodexWsStageRecord | undef
 
 /**
  * Pairing rule for reasoning diagnostics, shared with the live request-log capture path:
- * a non-empty string, a non-negative finite number, or a boolean only for
- * `reasoning.enabled`. The field name itself is validated separately at capture time;
+ * a non-empty string, a non-negative finite number, or a boolean only for the
+ * two boolean reasoning controls. The field name itself is validated separately at capture time;
  * persisted rows may carry legacy field names, so this checks only the value shape.
  */
 export function isValidReasoningWireValue(
@@ -792,7 +792,8 @@ export function isValidReasoningWireValue(
 ): wireValue is string | number | boolean {
   return (typeof wireValue === "string" && wireValue.length > 0)
     || (typeof wireValue === "number" && Number.isFinite(wireValue) && wireValue >= 0)
-    || (wireField === "reasoning.enabled" && typeof wireValue === "boolean");
+    || ((wireField === "reasoning.enabled" || wireField === "chat_template_kwargs.enable_thinking")
+      && typeof wireValue === "boolean");
 }
 
 function normalizedAttempts(raw: unknown): PersistedUsageAttempt[] {

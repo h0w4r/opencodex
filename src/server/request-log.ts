@@ -717,6 +717,7 @@ export function recordAdapterReasoning(
     if (typeof reasoning.effectiveEffort !== "string" || !reasoning.effectiveEffort
       || (reasoning.wireField !== "reasoning_effort"
         && reasoning.wireField !== "reasoning.enabled"
+        && reasoning.wireField !== "chat_template_kwargs.enable_thinking"
         && reasoning.wireField !== "reasoning.effort"
         && reasoning.wireField !== "thinking_budget"
         && reasoning.wireField !== "thinking.type")

@@ -33,7 +33,9 @@ results.noToolsHttpStatus = noTools.status;
 const selected = await choose(model);
 if (!selected.ok) throw new Error(`Selección real: HTTP ${selected.status}`);
 const saved = JSON.parse(readFileSync(join(home, "config.json"), "utf8"));
-if (!saved.customModels?.some((row: { provider: string; modelId: string }) => row.provider === "featherless" && row.modelId === model)) throw new Error("No se persistió el modelo.");
+const savedModel = saved.customModels?.find((row: { provider: string; modelId: string }) => row.provider === "featherless" && row.modelId === model);
+if (!savedModel) throw new Error("No se persistió el modelo.");
+if (!savedModel.inputModalities?.includes("image")) throw new Error("La selección perdió la modalidad de imagen declarada por Featherless.");
 if (saved.providers.featherless.liveModels !== false) throw new Error("No se separó descubrimiento de habilitación.");
 // Sin timeout total para una inferencia viva. El transporte del proveedor administra sus límites propios.
 const response = await fetch(`${base}/v1/chat/completions`, { method: "POST", headers,
@@ -44,6 +46,24 @@ const content = output.choices?.[0]?.message?.content;
 if (!content?.includes("OK")) throw new Error("La inferencia real no devolvió la salida esperada.");
 results.inference = { model: output.model, content: content.trim(), finishReason: output.choices?.[0]?.finish_reason, usage: output.usage };
 results.persisted = true;
+// Circuito visual real: la imagen binaria viaja por el gateway hasta Featherless.
+// Una etiqueta de catálogo sin este recorrido no acredita que el transporte acepte imágenes.
+const visionBytes = readFileSync(resolve("tests/fixtures/featherless-vision-red-blue.png"));
+const visionResponse = await fetch(`${base}/v1/chat/completions`, { method: "POST", headers,
+  body: JSON.stringify({
+    model: routedSlug("featherless", model),
+    messages: [{ role: "user", content: [
+      { type: "text", text: "Identify the two solid color blocks. Reply exactly: RED LEFT, BLUE RIGHT" },
+      { type: "image_url", image_url: { url: `data:image/png;base64,${visionBytes.toString("base64")}` } },
+    ] }],
+    max_tokens: 128,
+    stream: false,
+  }) });
+if (!visionResponse.ok) throw new Error(`Visión real: HTTP ${visionResponse.status}`);
+const visionOutput = await visionResponse.json() as { choices?: Array<{ message?: { content?: string } }>; usage?: unknown };
+const visionContent = visionOutput.choices?.[0]?.message?.content?.trim() ?? "";
+if (!/RED\s+LEFT[\s,;:-]+BLUE\s+RIGHT/i.test(visionContent)) throw new Error(`La respuesta visual no identificó los bloques: ${visionContent.slice(0, 160)}`);
+results.vision = { model, inputModalities: savedModel.inputModalities, resultMatched: true, content: visionContent, usage: visionOutput.usage };
 // Circuito real de herramientas: el modelo debe pedir una lectura; el runner lee
 // un archivo recién creado y devuelve el resultado mediante el protocolo tool.
 const marker = crypto.randomUUID();

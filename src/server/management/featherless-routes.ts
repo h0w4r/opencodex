@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { fetchFeatherlessPage, findFeatherlessModel, FeatherlessIndexPending } from "../../providers/featherless-index";
 import { isFeatherlessCatalogProvider, type FeatherlessModel } from "../../providers/featherless-catalog";
+import { applyFeatherlessReasoningProfile, probeFeatherlessReasoningProfile } from "../../providers/featherless-reasoning";
 import { saveConfigPreservingClaudeCode } from "../../config";
+import { resolveModelsAuthToken } from "../../oauth";
 import { clearModelCache } from "../../codex/model-cache";
 import { routedSlug, slugEquals, encodedModelIdCollides } from "../../providers/slug-codec";
 import { jsonResponse } from "../auth-cors";
@@ -45,7 +47,11 @@ export async function handleFeatherlessRoutes(ctx: ManagementContext): Promise<R
     // Revalida después del await: no reintroduce un proveedor borrado concurrentemente.
     const current = config.providers[provider];
     if (!current || !isFeatherlessCatalogProvider(current)) return jsonResponse({ error: "El proveedor cambió; actualiza la página." }, 409, req, config);
-    const before = { customModels: config.customModels, disabledModels: config.disabledModels, selectedModels: current.selectedModels, liveModels: current.liveModels };
+    const before = {
+      customModels: structuredClone(config.customModels),
+      disabledModels: structuredClone(config.disabledModels),
+      provider: structuredClone(current),
+    };
     const entries = [...(config.customModels ?? [])];
     const existing = entries.find(m => m.provider === provider && m.modelId === id);
     if (encodedModelIdCollides(id, [...(current.models ?? []), ...entries.filter(m => m.provider === provider).map(m => m.modelId)])) {
@@ -53,10 +59,15 @@ export async function handleFeatherlessRoutes(ctx: ManagementContext): Promise<R
     }
     // Deshabilitar sigue disponible sin red y después de que un modelo desaparezca del catálogo.
     if (!enabled && !existing && !current.models?.includes(id)) return jsonResponse({ error: "El modelo no estaba configurado." }, 404, req, config);
-    if (enabled && model && !existing) entries.push({ id: randomUUID(), provider, modelId: id,
-      ...(model.contextLength ? { contextWindow: model.contextLength } : {}),
-      inputModalities: model.inputModalities.filter(v => ["text", "image", "audio"].includes(v)),
-      addedAt: new Date().toISOString() });
+    if (enabled && model) {
+      const custom = existing ?? { id: randomUUID(), provider, modelId: id, addedAt: new Date().toISOString() };
+      if (model.contextLength) custom.contextWindow = model.contextLength;
+      custom.inputModalities = model.inputModalities.filter(v => ["text", "image", "audio"].includes(v));
+      const token = await resolveModelsAuthToken(provider, current);
+      const profile = await probeFeatherlessReasoningProfile(id, token);
+      applyFeatherlessReasoningProfile(current, custom, profile);
+      if (!existing) entries.push(custom);
+    }
     config.customModels = entries;
     // Reutiliza la configuración estática upstream: catálogo remoto completo separado del selector activo.
     current.liveModels = false;
@@ -65,7 +76,11 @@ export async function handleFeatherlessRoutes(ctx: ManagementContext): Promise<R
     if (!enabled) config.disabledModels.push(slug);
     if (enabled && current.selectedModels?.length) current.selectedModels = [...new Set([...current.selectedModels, id])];
     try { (ctx.deps.saveConfigPreservingClaudeCode ?? saveConfigPreservingClaudeCode)(config); }
-    catch (error) { Object.assign(config, { customModels: before.customModels, disabledModels: before.disabledModels }); current.selectedModels = before.selectedModels; current.liveModels = before.liveModels; throw error; }
+    catch (error) {
+      Object.assign(config, { customModels: before.customModels, disabledModels: before.disabledModels });
+      config.providers[provider] = before.provider;
+      throw error;
+    }
     clearModelCache(provider);
     const catalogRefresh = await ctx.convergeCodexCatalog();
     return jsonResponse({ ok: true, id, provider, enabled, catalogRefresh }, 200, req, config);

@@ -9,6 +9,7 @@ import { isDebugEnabled } from "../lib/debug-settings";
 import { openRouterProviderPayload, resolveOpenRouterRouting } from "../providers/openrouter-routing";
 import { resolveVercelGatewayRouting, vercelGatewayProviderPayload } from "../providers/vercel-gateway-routing";
 import { fastPolicyForModel } from "../providers/service-tier";
+import { isFeatherlessCatalogProvider } from "../providers/featherless-catalog";
 import { createAdapterTierMetadata, decideTier, type AdapterTierMetadata } from "../providers/fastwire";
 import {
   isTranslatorBudgetExceededError,
@@ -153,7 +154,31 @@ export function createOpenAIChatAdapter(provider: OcxProviderConfig): ProviderAd
           : mapReasoningEffort(provider, parsed.modelId, parsed.options.reasoning);
         const nativeOpenAI = isNativeOpenAIChatTarget(provider);
         let reasoningLog: AdapterRequest["reasoningLog"];
-        if (!reasoningDisabled && !omitReasoningEffortWithTools && provider.reasoningWireFormat === "gateway-object" && parsed.options.reasoning === "none") {
+        const featherlessTemplateReasoning = isFeatherlessCatalogProvider(provider)
+          && reasoningEffort !== undefined
+          && (reasoningEffort === "enabled"
+            || reasoningEffort === "disabled"
+            || modelInList(provider.thinkingBudgetModels, parsed.modelId));
+        if (!reasoningDisabled && !omitReasoningEffortWithTools && featherlessTemplateReasoning) {
+          const enabled = reasoningEffort !== "disabled";
+          const templateKwargs: Record<string, unknown> = { enable_thinking: enabled };
+          if (enabled) {
+            // Featherless ignora kwargs desconocidos. Enviar ambos mecanismos de preservación
+            // cubre Qwen/Kimi y GLM sin falsificar niveles ni depender del nombre del fine-tune.
+            templateKwargs.preserve_thinking = true;
+            templateKwargs.clear_thinking = false;
+            if (modelInList(provider.thinkingBudgetModels, parsed.modelId)) {
+              const budget = thinkingBudgetForEffort(parsed, reasoningEffort!, maxTokens);
+              if (budget !== undefined) templateKwargs.thinking_budget = budget;
+            }
+          }
+          body.chat_template_kwargs = templateKwargs;
+          reasoningLog = {
+            effectiveEffort: parsed.options.reasoning ?? reasoningEffort!,
+            wireField: "chat_template_kwargs.enable_thinking",
+            wireValue: enabled,
+          };
+        } else if (!reasoningDisabled && !omitReasoningEffortWithTools && provider.reasoningWireFormat === "gateway-object" && parsed.options.reasoning === "none") {
           if (nativeOpenAI) {
             body.reasoning_effort = "none";
             reasoningLog = {

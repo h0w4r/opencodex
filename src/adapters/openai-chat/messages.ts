@@ -215,7 +215,8 @@ export function messagesToChatFormat(parsed: OcxParsedRequest, provider: OcxProv
           // recorded under every call id — join unique texts only.
           if (cached.length > 0) {
             reasoningContent = [...new Set(cached)].join("\n");
-          } else if (modelInList(provider.requiresReasoningPlaceholderModels ?? provider.preserveReasoningContentModels, parsed.modelId)) {
+          } else if (parsed.options.reasoning !== "none"
+            && modelInList(provider.requiresReasoningPlaceholderModels ?? provider.preserveReasoningContentModels, parsed.modelId)) {
             // Fallback (extends #950, closes #1193): the replay cache is
             // bounded (64 entries / 256 KiB / 1 h TTL) and always misses on
             // long sessions, and some tool rounds carry no recorded reasoning
@@ -297,7 +298,8 @@ export function messagesToChatFormat(parsed: OcxParsedRequest, provider: OcxProv
           // falsy hit as a miss so the placeholder still fires.
           const orphanReasoning =
             cachedReasoning
-            || (modelInList(provider.preserveReasoningContentModels, parsed.modelId)
+            || (parsed.options.reasoning !== "none"
+              && modelInList(provider.preserveReasoningContentModels, parsed.modelId)
               && modelInList(provider.requiresReasoningPlaceholderModels ?? provider.preserveReasoningContentModels, parsed.modelId)
               ? " "
               : undefined);

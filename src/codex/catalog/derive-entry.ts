@@ -59,7 +59,9 @@ export function isExactComboCatalogEntry(
  * lowercase-dash style the opencode presets use: `commandcode-auth/x` and `commandcode-api/x`.
  * The model-id portion also carries a redundant `<vendor>-` prefix (`deepseek-deepseek-v4-flash`)
  * that is dropped for display. Google Antigravity is relabeled to the compact `agy/` prefix for
- * the same reason: `google-antigravity/` alone consumes most of the picker row. That prefix comes
+ * the same reason: `google-antigravity/` alone consumes most of the picker row. Featherless uses
+ * the display-only `fth/` prefix because its vendor-qualified model ids are already long. Neither
+ * compact label changes the routed slug sent back by Codex. The Antigravity prefix comes
  * from the row's own `providerAlias`, decided once per gather flight; `null` means a cross-provider
  * collision suppressed it and the canonical slug stands. This is the raw-slug path only -- a
  * configured `modelAliases` entry is labeled by the effective-alias path in
@@ -71,6 +73,9 @@ function routedDisplayName(slug: string, model?: CatalogModel, config?: Pick<Ocx
   if (slash <= 0) return slug;
   const provider = slug.slice(0, slash);
   let modelId = slug.slice(slash + 1);
+  // Keep the canonical `featherless/...` slug for routing and persisted history. Only the picker
+  // label is compacted, so existing conversations and external clients remain backwards compatible.
+  if (provider === "featherless") return `fth/${modelId}`;
   if (provider === "google-antigravity") {
     if (model?.providerAlias === null) return slug;
     const alias = (typeof model?.providerAlias === "string" && model.providerAlias.trim().length > 0)

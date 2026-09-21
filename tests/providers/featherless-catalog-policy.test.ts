@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { classifyFeatherlessModel, featherlessSearchUrl, featherlessSourceUrl, fetchFeatherlessWithRetry, isFeatherlessCatalogProvider } from "../../src/providers/featherless-catalog";
+import { classifyFeatherlessModel, featherlessInputModalities, featherlessSearchUrl, featherlessSourceUrl, fetchFeatherlessWithRetry, isFeatherlessCatalogProvider } from "../../src/providers/featherless-catalog";
 
 describe("Política transversal del catálogo Featherless", () => {
   test("restricciones en origen no amplían excepciones con un OR de toda la faceta tools", () => {
@@ -23,6 +23,16 @@ describe("Política transversal del catálogo Featherless", () => {
     expect(classifyFeatherlessModel({ ...model, supports_tool_calling: true, features: { tool_use: false } }).reason).toBe("tools-unsupported");
     expect(classifyFeatherlessModel({ ...model, supports_tool_calling: false, features: { tool_use: true } }).toolUse).toBe(false);
     expect(classifyFeatherlessModel({ ...model, features: { tool_use: true } }).toolEvidence).toEqual(["features.tool_use:true"]);
+  });
+  test("habilita visión sólo con metadatos oficiales y conserva el enum aceptado por Codex", () => {
+    expect(featherlessInputModalities({ input_modalities: ["text", "image", "video"] }))
+      .toEqual(["text", "image"]);
+    expect(featherlessInputModalities({ input_modalities: ["text"], vision_supported: true }))
+      .toEqual(["text", "image"]);
+    expect(featherlessInputModalities({ features: { image_input: true } }))
+      .toEqual(["text", "image"]);
+    expect(featherlessInputModalities({ id: "org/Fake-Vision-Model", input_modalities: ["text"] }))
+      .toEqual(["text"]);
   });
   test("el límite de 16B es inclusivo y no se deduce del nombre", () => {
     expect(row("org/model", 16e9).reason).toBe("parameters");

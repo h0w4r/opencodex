@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getConfigDir } from "../config/paths";
 import { atomicWriteFileAsync } from "../config/atomic-write";
-import { FEATHERLESS_EXCEPTION, applyFeatherlessToolProof, classifyFeatherlessModel, fetchFeatherlessSourcePage, featherlessSearchUrl, type FeatherlessModel, type FeatherlessPage } from "./featherless-catalog";
+import { FEATHERLESS_EXCEPTION, applyFeatherlessToolProof, classifyFeatherlessModel, fetchFeatherlessSourcePage, fetchFeatherlessWithRetry, featherlessSearchUrl, type FeatherlessModel, type FeatherlessPage } from "./featherless-catalog";
 import { fingerprintFeatherlessCapabilityEvidence, loadFeatherlessCapabilityEvidence, type FeatherlessCapabilityProof } from "./featherless-capability-evidence";
 import { parameterBucket, queryFeatherlessIndex } from "./featherless-index-query";
 
@@ -99,8 +99,8 @@ async function build(parameters: URLSearchParams, state: State, proofs: Map<stri
 }
 
 async function fetchProvenModel(proof: FeatherlessCapabilityProof): Promise<FeatherlessModel | undefined> {
-  const response = await fetch(`https://api.featherless.ai/v1/models/${proof.modelId.split("/").map(encodeURIComponent).join("/")}`,
-    { redirect: "error", signal: AbortSignal.timeout(30000) });
+  const response = await fetchFeatherlessWithRetry(`https://api.featherless.ai/v1/models/${proof.modelId.split("/").map(encodeURIComponent).join("/")}`,
+    { redirect: "error" });
   if (response.status === 404) return undefined;
   if (!response.ok) throw new Error(`Metadatos de evidencia runtime: HTTP ${response.status}.`);
   const model = applyFeatherlessToolProof(classifyFeatherlessModel(await response.json()),
@@ -168,8 +168,8 @@ export async function findFeatherlessModel(id: string): Promise<FeatherlessModel
   if (!state.snapshot.models.some(model => model.id === id)) return undefined;
   // Revalida contra el detalle documentado: una retirada de soporte no queda
   // autorizada durante seis horas simplemente por existir en una caché anterior.
-  const response = await fetch(`https://api.featherless.ai/v1/models/${id.split("/").map(encodeURIComponent).join("/")}`,
-    { redirect: "error", signal: AbortSignal.timeout(30000) });
+  const response = await fetchFeatherlessWithRetry(`https://api.featherless.ai/v1/models/${id.split("/").map(encodeURIComponent).join("/")}`,
+    { redirect: "error" });
   if (response.status === 404) return undefined;
   if (!response.ok) throw new Error(`Metadatos de selección: HTTP ${response.status}.`);
   let model = classifyFeatherlessModel(await response.json());

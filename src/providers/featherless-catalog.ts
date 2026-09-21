@@ -3,6 +3,60 @@ export const FEATHERLESS_MIN_PARAMETERS = 16_000_000_000;
 export const FEATHERLESS_FACETS = ["modalities", "parameter_bucket", "family", "capabilities", "architectures", "languages", "domains", "creative", "training", "license", "popularity_level"] as const;
 export const FEATHERLESS_SORTS = ["-trending_rank", "-downloads", "-favorites", "-hf_created_at", "-parameter_size", "-avg_rating"] as const;
 
+const FEATHERLESS_FETCH_ATTEMPTS = 4;
+const FEATHERLESS_FETCH_TIMEOUT_MS = 30_000;
+
+export interface FeatherlessFetchDeps {
+  fetch?: typeof fetch;
+  sleep?: (milliseconds: number) => Promise<void>;
+  timeoutMs?: number;
+}
+
+function transientStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+function retryDelay(response: Response | undefined, attempt: number): number {
+  const retryAfter = response?.headers.get("retry-after")?.trim();
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    const parsed = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - Date.now();
+    if (Number.isFinite(parsed) && parsed >= 0) return Math.min(parsed, 10_000);
+  }
+  return Math.min(250 * (2 ** attempt), 2_000);
+}
+
+/**
+ * Reintenta solamente fallos transitorios del proveedor. Cada petición tiene
+ * su propio límite de conexión/lectura, pero no existe un timeout total que
+ * cancele una descarga que sigue progresando página por página.
+ */
+export async function fetchFeatherlessWithRetry(
+  input: string | URL,
+  init: RequestInit = {},
+  deps: FeatherlessFetchDeps = {},
+): Promise<Response> {
+  const fetchImpl = deps.fetch ?? fetch;
+  const sleep = deps.sleep ?? (milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)));
+  let lastError: unknown;
+  for (let attempt = 0; attempt < FEATHERLESS_FETCH_ATTEMPTS; attempt++) {
+    let response: Response | undefined;
+    try {
+      response = await fetchImpl(input, {
+        ...init,
+        signal: AbortSignal.timeout(deps.timeoutMs ?? FEATHERLESS_FETCH_TIMEOUT_MS),
+      });
+      if (!transientStatus(response.status) || attempt === FEATHERLESS_FETCH_ATTEMPTS - 1) return response;
+      try { await response.body?.cancel(); } catch { /* El siguiente intento no depende del drenaje remoto. */ }
+    } catch (error) {
+      lastError = error;
+      if (attempt === FEATHERLESS_FETCH_ATTEMPTS - 1) throw error;
+    }
+    await sleep(retryDelay(response, attempt));
+  }
+  throw lastError instanceof Error ? lastError : new Error("Featherless no respondió tras los reintentos transitorios.");
+}
+
 /** No intercepta un destino personalizado aunque su proveedor se llame featherless. */
 export function isFeatherlessCatalogProvider(provider: { baseUrl: string; adapter: string }): boolean {
   return provider.adapter === "openai-chat" && provider.baseUrl.replace(/\/+$/, "") === "https://api.featherless.ai/v1";
@@ -151,7 +205,7 @@ export async function fetchFeatherlessSourcePage(input: URLSearchParams, bounds:
   if (existing) return existing;
   if (flights.size >= 16) throw new Error("El catálogo está atendiendo otras consultas. Reintenta en unos instantes.");
   const flight = (async () => {
-    const response = await fetch(url, { signal: AbortSignal.timeout(30000), redirect: "error", headers: { Accept: "application/json" } });
+    const response = await fetchFeatherlessWithRetry(url, { redirect: "error", headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error(`Featherless HTTP ${response.status}. No se ha sustituido el catálogo por una lista parcial.`);
     const raw = await response.text();
     if (raw.length > 4 * 1024 * 1024) throw new Error("La página de Featherless excede el tamaño esperado.");

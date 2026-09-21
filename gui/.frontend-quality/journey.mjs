@@ -1,3 +1,31 @@
+/**
+ * Ejecuta una mutación real y espera la respuesta terminal del backend.
+ *
+ * Habilitar un modelo puede consultar el formatter remoto de Featherless para
+ * descubrir sus niveles de razonamiento. Por ello no se usa un timeout total
+ * fijo: Playwright espera la respuesta HTTP real y el supervisor del gate
+ * conserva el latido del proceso mientras la operación sigue activa.
+ */
+async function toggleModel({ page, expect, id, enabled }) {
+  const action = page.getByRole('button', {
+    name: `${enabled ? 'Habilitar' : 'Deshabilitar'}: ${id}`,
+    exact: true,
+  });
+  const completed = page.waitForResponse(response =>
+    response.url().includes('/api/featherless/selection')
+      && response.request().method() === 'POST',
+  { timeout: 0 });
+  await action.click();
+  const response = await completed;
+  expect(response.ok(), `La selección real de ${id} debe concluir correctamente`).toBeTruthy();
+  const settled = page.getByRole('button', {
+    name: `${enabled ? 'Deshabilitar' : 'Habilitar'}: ${id}`,
+    exact: true,
+  });
+  await expect(settled).toHaveAttribute('aria-pressed', String(enabled));
+  return response.status();
+}
+
 /** Circuito real con Featherless y el servidor aislado 10101; nunca intercepta respuestas. */
 export async function runJourney({ page, expect, record, viewport }) {
   const search = page.getByRole('searchbox', { name: 'Buscar modelos Featherless' });
@@ -38,13 +66,12 @@ export async function runJourney({ page, expect, record, viewport }) {
   await expect(page.locator('.fl-policy')).toContainText('Sólo modelos con tool calling');
   await expect(page.locator('.fl-model').filter({ hasText: id })).toContainText('Tool calling declarado');
   const off = page.getByRole('button', { name: `Deshabilitar: ${id}`, exact: true });
-  if (await off.count()) await off.click();
-  await page.getByRole('button', { name: `Habilitar: ${id}`, exact: true }).click();
-  await expect(off).toHaveAttribute('aria-pressed', 'true');
+  if (await off.count()) await toggleModel({ page, expect, id, enabled: false });
+  const enableStatus = await toggleModel({ page, expect, id, enabled: true });
   await page.reload();
   await expect(off).toHaveAttribute('aria-pressed', 'true');
   await expect(search).toHaveValue(id);
   // En móvil encuadra la tarjeta y sus controles; el cuerpo es el contenedor de scroll real.
   if (viewport === 'mobile') await page.locator('.fl-model').scrollIntoViewIfNeeded();
-  record({ fase: 'seleccion-persistida-tras-recarga', modelo: id, habilitado: true });
+  record({ fase: 'seleccion-persistida-tras-recarga', modelo: id, habilitado: true, httpStatus: enableStatus });
 }

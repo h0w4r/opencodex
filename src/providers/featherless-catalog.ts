@@ -93,6 +93,27 @@ export interface FeatherlessPage {
 const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const positive = (value: unknown): number | null => typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
 const texts = (value: unknown): string[] => Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+const FEATHERLESS_CODEX_MODALITIES = ["text", "image", "audio"] as const;
+
+/**
+ * Normaliza únicamente señales documentadas por Featherless. `input_modalities`
+ * es la fuente primaria; `vision_supported` y `features.image_input` cubren
+ * respuestas de detalle antiguas o parciales. El nombre del modelo nunca concede
+ * visión (ni siquiera si contiene "Vision"), evitando capacidades imaginarias.
+ */
+export function featherlessInputModalities(value: unknown): string[] {
+  const row = record(value);
+  const modelClass = record(row.model_class);
+  const features = record(row.features);
+  const explicit = texts(row.input_modalities ?? modelClass.input_modalities)
+    .filter(value => (FEATHERLESS_CODEX_MODALITIES as readonly string[]).includes(value));
+  const modalities = new Set(explicit);
+  if (row.vision_supported === true || features.image_input === true) {
+    modalities.add("text");
+    modalities.add("image");
+  }
+  return FEATHERLESS_CODEX_MODALITIES.filter(modality => modalities.has(modality));
+}
 // Los términos son evidencia declarada, no una garantía sobre el comportamiento o las capacidades.
 export const FEATHERLESS_EXCEPTION = /(?:^|[^a-z0-9])(?:uncensored|unfiltered|abliterat(?:ed|ion|ing|e)?|obliterat(?:ed|ion|ing|e)?|de[-_ ]?censored|decensor(?:ed)?|de[-_ ]?restricted|unrestricted|de[-_ ]?aligned|refusal[-_ ]?(?:removed|removal|free)|no[-_ ]?refusals?|anti[-_ ]?refusal|jailbroken|cyber[-_ ]?security|cybersec|cyber[-_ ]?(?:defense|defence)|pentest(?:ing)?|penetration[-_ ]?testing|offensive[-_ ]?security|offsec|vulnerability[-_ ]?(?:detection|analysis)|malware[-_ ]?analysis|red[-_ ]?team(?:ing)?)(?:$|[^a-z0-9])/i;
 
@@ -130,7 +151,7 @@ export function classifyFeatherlessModel(value: unknown): FeatherlessModel {
     id: row.id, parameterSize, reason, evidence, tags, toolUse, toolEvidence,
     contextLength: positive(row.context_length) ?? positive(modelClass.context_length),
     status: typeof row.status === "string" ? row.status : "unknown",
-    inputModalities: texts(row.input_modalities ?? modelClass.input_modalities),
+    inputModalities: featherlessInputModalities(row),
     downloads: positive(row.downloads) ?? 0, favorites: positive(row.favorites) ?? 0,
     releasedAt: typeof row.hf_created_at === "string" ? row.hf_created_at : null,
   };

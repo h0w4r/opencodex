@@ -271,8 +271,12 @@ describe("Featherless provider", () => {
 
     // El catálogo nativo de OpenAI normalmente no enumera `none`; aun así Codex lo
     // acepta como sentinela declarado y no debe borrar el apagado verificado de Featherless.
-    clampEntryToCodexSupportedEfforts(row!, new Set(["low", "medium", "high", "xhigh", "max", "ultra"]));
-    expect(row?.supported_reasoning_levels?.map(level => level.effort)).toEqual(["none", "high"]);
+    // El ensamblador real clona las entradas antes del clamp observado. La
+    // exactitud debe sobrevivir al clon sin publicar campos privados.
+    const cloned = structuredClone(row!);
+    clampEntryToCodexSupportedEfforts(cloned, new Set(["low", "medium", "high", "xhigh", "max", "ultra"]));
+    expect(cloned.supported_reasoning_levels?.map(level => level.effort)).toEqual(["none", "high"]);
+    expect(Object.keys(cloned).some(key => key.includes("exact"))).toBe(false);
   });
 
   test("does not retarget an older same-named custom provider or adapter", () => {

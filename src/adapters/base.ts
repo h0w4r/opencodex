@@ -120,6 +120,11 @@ export interface AdapterRequest {
         }
       | {
           effectiveEffort: string;
+          wireField: "chat_template_kwargs.enable_thinking";
+          wireValue: boolean;
+        }
+      | {
+          effectiveEffort: string;
           wireField: "thinking_budget";
           wireValue: number;
         }

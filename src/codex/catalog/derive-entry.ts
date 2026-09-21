@@ -109,7 +109,9 @@ export function deriveEntry(
 ): RawEntry {
   const preserveExact = isExactComboCatalogModel(model, exactComboSlugs);
   // Go exposes model-specific upstream enums; synthetic tiers mislead subagent overrides.
-  const preserveExactReasoning = preserveExact || model?.provider === "opencode-go";
+  const preserveExactReasoning = preserveExact
+    || model?.provider === "opencode-go"
+    || model?.preserveExactReasoning === true;
   const codexForwardNativeCapabilityAlias = model?.codexForwardNativeCapabilityAlias === true
     ? upstreamNativeEntry(model.id)
     : null;

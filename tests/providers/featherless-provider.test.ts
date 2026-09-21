@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createOpenAIChatAdapter } from "../../src/adapters/openai-chat";
-import { gatherRoutedModels } from "../../src/codex/catalog";
+import { buildCatalogEntries, gatherRoutedModels } from "../../src/codex/catalog";
 import { catalogHintsFromModelsApiItem } from "../../src/codex/catalog/provider-fetch";
 import { clearModelCache } from "../../src/codex/model-cache";
 import { buildInitProviders } from "../../src/cli/init";
@@ -220,6 +220,54 @@ describe("Featherless provider", () => {
     expect(body.model).toBe(modelId);
     expect(body).not.toHaveProperty("parallel_tool_calls");
     expect(body).not.toHaveProperty("reasoning_effort");
+  });
+
+  test("serializes a verified Featherless toggle as nested chat-template kwargs", () => {
+    const modelId = "deepseek-ai/DeepSeek-V4.1-Flash";
+    const config = providerConfig({
+      modelReasoningEfforts: { [modelId]: ["none", "high"] },
+      modelReasoningEffortMap: { [modelId]: { none: "disabled", high: "enabled" } },
+      modelSuppressSyntheticMax: { [modelId]: true },
+      preserveReasoningContentModels: [modelId],
+    });
+    const route = routeModel(config, `featherless/${modelId}`);
+    const adapter = createOpenAIChatAdapter(route.provider);
+    const parsed = {
+      modelId: route.modelId,
+      context: { messages: [{ role: "user" as const, content: "ping", timestamp: 0 }], tools: [] },
+      stream: true,
+      options: { reasoning: "high" },
+    };
+
+    const enabled = JSON.parse(String(adapter.buildRequest(parsed).body)) as Record<string, unknown>;
+    const disabled = JSON.parse(String(adapter.buildRequest({ ...parsed, options: { reasoning: "none" } }).body)) as Record<string, unknown>;
+    expect(enabled.chat_template_kwargs).toEqual({
+      enable_thinking: true,
+      preserve_thinking: true,
+      clear_thinking: false,
+    });
+    expect(disabled.chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(enabled).not.toHaveProperty("reasoning_effort");
+    expect(disabled).not.toHaveProperty("reasoning_effort");
+  });
+
+  test("keeps an evidence-backed Featherless custom ladder exact in the Codex picker", async () => {
+    const modelId = "Qwen/Qwen3.8-27B";
+    const config = providerConfig({ liveModels: false });
+    config.customModels = [{
+      id: "verified",
+      provider: "featherless",
+      modelId,
+      reasoningEfforts: ["none", "high"],
+      defaultReasoningEffort: "high",
+    }];
+    const models = await gatherRoutedModels(config);
+    const model = models.find(row => row.provider === "featherless" && row.id === modelId)!;
+    const row = buildCatalogEntries(null, [], [model]).find(entry => entry.slug?.startsWith("featherless/"));
+
+    expect(model.preserveExactReasoning).toBe(true);
+    expect(row?.supported_reasoning_levels?.map(level => level.effort)).toEqual(["none", "high"]);
+    expect(row?.default_reasoning_level).toBe("high");
   });
 
   test("does not retarget an older same-named custom provider or adapter", () => {

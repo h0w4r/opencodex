@@ -4,6 +4,8 @@ import type { OcxCustomModel, OcxProviderConfig } from "../types";
 /** Contrato probado del selector de razonamiento que Codex puede representar. */
 export interface FeatherlessReasoningProfile {
   kind: "toggle" | "budget" | "fixed-or-unknown";
+  /** Todos los controles necesarios respondieron; sólo entonces puede reemplazar evidencia previa. */
+  complete: boolean;
   reasoningEfforts: string[];
   defaultReasoningEffort?: string;
   defaultEnabled: boolean | null;
@@ -105,6 +107,7 @@ export async function probeFeatherlessReasoningProfile(
   if (!apiKey?.trim()) {
     return {
       kind: "fixed-or-unknown",
+      complete: false,
       reasoningEfforts: [],
       defaultEnabled: null,
       checkedAt,
@@ -130,6 +133,7 @@ export async function probeFeatherlessReasoningProfile(
   if (!toggleWorks) {
     return {
       kind: "fixed-or-unknown",
+      complete: [omitted, disabled, enabled].every(rendered => rendered.prompt !== undefined),
       reasoningEfforts: [],
       defaultEnabled: omitted.prompt !== undefined && enabled.prompt !== undefined
         && omitted.prompt === enabled.prompt ? true
@@ -154,6 +158,9 @@ export async function probeFeatherlessReasoningProfile(
     : omitted.prompt === disabled.prompt ? false : null;
   return {
     kind: budgetWorks ? "budget" : "toggle",
+    // La escala binaria está probada, pero no se afirma que sea exhaustiva si
+    // alguno de los dos presupuestos no pudo contrastarse con el formatter.
+    complete: budgetLow.prompt !== undefined && budgetHigh.prompt !== undefined,
     reasoningEfforts: budgetWorks
       ? ["none", "low", "medium", "high", "xhigh", "max"]
       : ["none", "high"],
@@ -199,6 +206,9 @@ export function applyFeatherlessReasoningProfile(
   customModel: OcxCustomModel,
   profile: FeatherlessReasoningProfile,
 ): void {
+  // Una interrupción temporal del endpoint de debug no puede borrar una escala
+  // que ya fue acreditada. El llamador puede conservar el perfil y reintentarlo.
+  if (!profile.complete) return;
   const modelId = customModel.modelId;
   customModel.reasoningEfforts = [...profile.reasoningEfforts];
   if (profile.defaultReasoningEffort) customModel.defaultReasoningEffort = profile.defaultReasoningEffort;

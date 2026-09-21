@@ -35,6 +35,7 @@ describe("Featherless reasoning discovery", () => {
 
     expect(profile).toMatchObject({
       kind: "toggle",
+      complete: true,
       reasoningEfforts: ["none", "high"],
       defaultReasoningEffort: "high",
       defaultEnabled: true,
@@ -49,6 +50,7 @@ describe("Featherless reasoning discovery", () => {
       fetch: probeFetch({ toggle: true, budget: true }),
     });
     expect(profile.kind).toBe("budget");
+    expect(profile.complete).toBe(true);
     expect(profile.reasoningEfforts).toEqual(["none", "low", "medium", "high", "xhigh", "max"]);
     expect(profile.evidence.budgetLowHash).not.toBe(profile.evidence.budgetHighHash);
   });
@@ -59,6 +61,7 @@ describe("Featherless reasoning discovery", () => {
     });
     expect(profile).toMatchObject({
       kind: "fixed-or-unknown",
+      complete: true,
       reasoningEfforts: [],
       defaultEnabled: true,
     });
@@ -77,6 +80,7 @@ describe("Featherless reasoning discovery", () => {
       retryDelayMs: 0,
     });
     expect(profile.kind).toBe("toggle");
+    expect(profile.complete).toBe(true);
     expect(calls).toBe(6);
   });
 
@@ -89,6 +93,7 @@ describe("Featherless reasoning discovery", () => {
     const custom: OcxCustomModel = { id: "row", provider: "featherless", modelId: "deepseek-ai/DeepSeek-V4.1-Flash" };
     const profile: FeatherlessReasoningProfile = {
       kind: "toggle",
+      complete: true,
       reasoningEfforts: ["none", "high"],
       defaultReasoningEffort: "high",
       defaultEnabled: true,
@@ -104,5 +109,34 @@ describe("Featherless reasoning discovery", () => {
     expect(provider.modelSuppressSyntheticMax?.[custom.modelId]).toBe(true);
     expect(provider.preserveReasoningContentModels).toContain(custom.modelId);
     expect(provider.requiresReasoningPlaceholderModels).toContain(custom.modelId);
+  });
+
+  test("an inconclusive audit preserves a previously verified ladder", async () => {
+    const unavailable = (async () => new Response("temporary", { status: 503 })) as typeof fetch;
+    const profile = await probeFeatherlessReasoningProfile("deepseek-ai/DeepSeek-V4.1-Flash", "secret", {
+      fetch: unavailable,
+      retryDelayMs: 0,
+    });
+    const modelId = "deepseek-ai/DeepSeek-V4.1-Flash";
+    const provider: OcxProviderConfig = {
+      adapter: "openai-chat",
+      baseUrl: "https://api.featherless.ai/v1",
+      reasoningEfforts: [],
+      modelReasoningEfforts: { [modelId]: ["none", "high"] },
+      modelReasoningEffortMap: { [modelId]: { none: "disabled", high: "enabled" } },
+    };
+    const custom: OcxCustomModel = {
+      id: "row",
+      provider: "featherless",
+      modelId,
+      reasoningEfforts: ["none", "high"],
+      defaultReasoningEffort: "high",
+    };
+
+    expect(profile.complete).toBe(false);
+    applyFeatherlessReasoningProfile(provider, custom, profile);
+    expect(custom.reasoningEfforts).toEqual(["none", "high"]);
+    expect(provider.modelReasoningEfforts?.[modelId]).toEqual(["none", "high"]);
+    expect(provider.modelReasoningEffortMap?.[modelId]).toEqual({ none: "disabled", high: "enabled" });
   });
 });

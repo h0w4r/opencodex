@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createOpenAIChatAdapter } from "../../src/adapters/openai-chat";
-import { buildCatalogEntries, gatherRoutedModels } from "../../src/codex/catalog";
+import { buildCatalogEntries, clampEntryToCodexSupportedEfforts, gatherRoutedModels } from "../../src/codex/catalog";
 import { catalogHintsFromModelsApiItem } from "../../src/codex/catalog/provider-fetch";
 import { clearModelCache } from "../../src/codex/model-cache";
 import { buildInitProviders } from "../../src/cli/init";
@@ -268,6 +268,11 @@ describe("Featherless provider", () => {
     expect(model.preserveExactReasoning).toBe(true);
     expect(row?.supported_reasoning_levels?.map(level => level.effort)).toEqual(["none", "high"]);
     expect(row?.default_reasoning_level).toBe("high");
+
+    // El catálogo nativo de OpenAI normalmente no enumera `none`; aun así Codex lo
+    // acepta como sentinela declarado y no debe borrar el apagado verificado de Featherless.
+    clampEntryToCodexSupportedEfforts(row!, new Set(["low", "medium", "high", "xhigh", "max", "ultra"]));
+    expect(row?.supported_reasoning_levels?.map(level => level.effort)).toEqual(["none", "high"]);
   });
 
   test("does not retarget an older same-named custom provider or adapter", () => {

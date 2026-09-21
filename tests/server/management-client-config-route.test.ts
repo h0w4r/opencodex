@@ -412,7 +412,7 @@ describe("GET /api/client-config", () => {
     const model = (body.config as PiGeneratedConfig).providers[OPENCODE_PROVIDER_ID]!.models
       .find(entry => entry.id === "a/m1")!;
 
-    expect(model).not.toHaveProperty("reasoning");
+    expect(model.reasoning).toBe(false);
     expect(model).not.toHaveProperty("thinking");
 
     // A manual metadata override must not bypass the provider-wide prohibition.

@@ -503,6 +503,21 @@ describe("OMP serializer", () => {
     expect(document.providers.opencodex.models[0]).not.toHaveProperty("reasoning");
     expect(document.providers.opencodex.models[0]).not.toHaveProperty("thinking");
   });
+
+  test("emits explicit false for an authoritative empty ladder so OMP cannot infer one", () => {
+    const document = buildClientConfig("omp", ctx({
+      models: [{
+        namespaced: "xai/grok-build-0.1",
+        provider: "xai",
+        id: "grok-build-0.1",
+        reasoningEfforts: [],
+      }],
+    })) as {
+      providers: { opencodex: { models: Array<Record<string, unknown>> } };
+    };
+    expect(document.providers.opencodex.models[0]).toMatchObject({ reasoning: false });
+    expect(document.providers.opencodex.models[0]).not.toHaveProperty("thinking");
+  });
 });
 
 describe("DSH rc.6 serializer", () => {

@@ -112,6 +112,8 @@ export interface CatalogModel {
   displayName?: string;
   owned_by?: string;
   reasoningEfforts?: string[];
+  /** Preserve an evidence-backed ladder exactly; never synthesize max/ultra picker rows. */
+  preserveExactReasoning?: boolean;
   /** Suppress only catalog synthesis of a missing max rung; provider-declared max survives. */
   suppressSyntheticMax?: boolean;
   defaultReasoningEffort?: string;

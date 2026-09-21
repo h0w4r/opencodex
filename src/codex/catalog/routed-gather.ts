@@ -56,6 +56,7 @@ import { fetchQoderModels } from "../../adapters/qoder/live-models";
 import { resolveQoderProfile } from "../../adapters/qoder/profiles";
 import { fetchDevinUsableModels } from "../../adapters/devin/live-models";
 import { isCanonicalOpenAiForwardProvider, OPENAI_API_PROVIDER_ID, OPENAI_CODEX_PROVIDER_ID } from "../../providers/openai-tiers";
+import { isFeatherlessCatalogProvider } from "../../providers/featherless-catalog";
 import {
   COMBO_NAMESPACE,
   comboModelId,
@@ -637,6 +638,8 @@ async function gatherRoutedModelsUncached(
       // instead of being replaced by that row's metadata. Capability-backed native model ids
       // are bounded against their own pinned ladder after the merge, including gateways.
       ...(Array.isArray(cm.reasoningEfforts) ? { reasoningEfforts: [...cm.reasoningEfforts] } : {}),
+      ...(Array.isArray(cm.reasoningEfforts) && effectiveProvider && isFeatherlessCatalogProvider(effectiveProvider)
+        ? { preserveExactReasoning: true } : {}),
       ...(cm.defaultReasoningEffort ? { defaultReasoningEffort: cm.defaultReasoningEffort } : {}),
       ...(typeof supportsServiceTier === "boolean" ? { supportsServiceTier } : {}),
       ...(supportsServiceTier === true && fastPolicy?.fastTierDescription !== undefined

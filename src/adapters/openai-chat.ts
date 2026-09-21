@@ -11,6 +11,7 @@ import { isDebugEnabled } from "../lib/debug-settings";
 import { openRouterProviderPayload, resolveOpenRouterRouting } from "../providers/openrouter-routing";
 import { resolveVercelGatewayRouting, vercelGatewayProviderPayload } from "../providers/vercel-gateway-routing";
 import { fastPolicyForModel } from "../providers/service-tier";
+import { isFeatherlessCatalogProvider } from "../providers/featherless-catalog";
 import { createAdapterTierMetadata, decideTier, type AdapterTierMetadata } from "../providers/fastwire";
 import {
   isTranslatorBudgetExceededError,
@@ -155,8 +156,32 @@ export function createOpenAIChatAdapter(provider: OcxProviderConfig): ProviderAd
           body,
         });
         let reasoningLog: AdapterRequest["reasoningLog"];
+        const featherlessTemplateReasoning = isFeatherlessCatalogProvider(provider)
+          && reasoningEffort !== undefined
+          && (reasoningEffort === "enabled"
+            || reasoningEffort === "disabled"
+            || modelInList(provider.thinkingBudgetModels, parsed.modelId));
         if (explicitReasoning.handled) {
           reasoningLog = explicitReasoning.reasoningLog;
+        } else if (!reasoningDisabled && featherlessTemplateReasoning) {
+          const enabled = reasoningEffort !== "disabled";
+          const templateKwargs: Record<string, unknown> = { enable_thinking: enabled };
+          if (enabled) {
+            // Featherless ignora kwargs desconocidos. Enviar ambos mecanismos de preservación
+            // cubre Qwen/Kimi y GLM sin falsificar niveles ni depender del nombre del fine-tune.
+            templateKwargs.preserve_thinking = true;
+            templateKwargs.clear_thinking = false;
+            if (modelInList(provider.thinkingBudgetModels, parsed.modelId)) {
+              const budget = thinkingBudgetForEffort(parsed, reasoningEffort!, maxTokens);
+              if (budget !== undefined) templateKwargs.thinking_budget = budget;
+            }
+          }
+          body.chat_template_kwargs = templateKwargs;
+          reasoningLog = {
+            effectiveEffort: parsed.options.reasoning ?? reasoningEffort!,
+            wireField: "chat_template_kwargs.enable_thinking",
+            wireValue: enabled,
+          };
         } else if (reasoningEffort !== undefined) {
           if (modelInList(provider.thinkingBudgetModels, parsed.modelId)) {
             const budget = thinkingBudgetForEffort(parsed, reasoningEffort, maxTokens);

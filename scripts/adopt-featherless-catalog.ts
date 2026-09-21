@@ -1,10 +1,18 @@
 /** Adopción explícita: modifica sólo el modo de descubrimiento del proveedor oficial, usando el writer upstream. */
 import { loadConfig, saveConfigPreservingClaudeCode } from "../src/config";
-import { classifyFeatherlessModel, isFeatherlessCatalogProvider } from "../src/providers/featherless-catalog";
+import {
+  applyFeatherlessToolProof,
+  classifyFeatherlessModel,
+  isFeatherlessCatalogProvider,
+} from "../src/providers/featherless-catalog";
+import { loadFeatherlessCapabilityEvidence } from "../src/providers/featherless-capability-evidence";
 import { routedSlug, slugEquals } from "../src/providers/slug-codec";
 let config = loadConfig();
 const names: string[] = [];
 const rejected: Array<{ provider: string; id: string; reason: string }> = [];
+// La adopción debe usar la misma política que el índice. Ignorar una prueba runtime
+// vigente volvería a deshabilitar justamente los modelos acreditados por tool calling real.
+const toolProofs = loadFeatherlessCapabilityEvidence();
 // Primero verifica todo, después escribe: una caída de red no deja una migración parcial.
 for (const [name, provider] of Object.entries(config.providers)) {
   if (!isFeatherlessCatalogProvider(provider)) continue;
@@ -17,7 +25,9 @@ for (const [name, provider] of Object.entries(config.providers)) {
       { redirect: "error", signal: AbortSignal.timeout(30000) });
     if (response.status === 404) { rejected.push({ provider: name, id, reason: "not-found" }); continue; }
     if (!response.ok) throw new Error(`No se modificó la selección: metadatos HTTP ${response.status}.`);
-    const model = classifyFeatherlessModel(await response.json());
+    let model = classifyFeatherlessModel(await response.json());
+    const proof = toolProofs.get(id);
+    if (proof) model = applyFeatherlessToolProof(model, `runtime:${proof.transport}:${proof.observedAt}`);
     if (model.id !== id) throw new Error("No se modificó la selección: identificador remoto inconsistente.");
     if (model.reason !== "parameters" && model.reason !== "exception") rejected.push({ provider: name, id, reason: model.reason });
   }

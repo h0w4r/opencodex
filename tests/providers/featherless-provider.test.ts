@@ -268,6 +268,9 @@ describe("Featherless provider", () => {
     expect(model.preserveExactReasoning).toBe(true);
     expect(row?.supported_reasoning_levels?.map(level => level.effort)).toEqual(["none", "high"]);
     expect(row?.default_reasoning_level).toBe("high");
+    // The shortened label is cosmetic: the canonical route remains stable for history/config.
+    expect(row?.slug).toBe("featherless/Qwen-Qwen3.8-27B");
+    expect(row?.display_name).toBe("fth/Qwen-Qwen3.8-27B");
 
     // El catálogo nativo de OpenAI normalmente no enumera `none`; aun así Codex lo
     // acepta como sentinela declarado y no debe borrar el apagado verificado de Featherless.
@@ -277,6 +280,33 @@ describe("Featherless provider", () => {
     clampEntryToCodexSupportedEfforts(cloned, new Set(["low", "medium", "high", "xhigh", "max", "ultra"]));
     expect(cloned.supported_reasoning_levels?.map(level => level.effort)).toEqual(["none", "high"]);
     expect(Object.keys(cloned).some(key => key.includes("exact"))).toBe(false);
+  });
+
+  test("publishes provider-declared vision without inferring it from the model name", async () => {
+    const config = providerConfig({ liveModels: false });
+    config.customModels = [
+      {
+        id: "vision",
+        provider: "featherless",
+        modelId: "zai-org/GLM-5.3-Flash",
+        inputModalities: ["text", "image"],
+      },
+      {
+        id: "text-only",
+        provider: "featherless",
+        modelId: "zai-org/GLM-5.3",
+        inputModalities: ["text"],
+      },
+    ];
+
+    const rows = buildCatalogEntries(null, [], await gatherRoutedModels(config));
+    const flash = rows.find(row => row.slug === "featherless/zai-org-GLM-5.3-Flash");
+    const base = rows.find(row => row.slug === "featherless/zai-org-GLM-5.3");
+
+    expect(flash?.input_modalities).toEqual(["text", "image"]);
+    expect(base?.input_modalities).toEqual(["text"]);
+    expect(flash?.display_name).toBe("fth/zai-org-GLM-5.3-Flash");
+    expect(base?.display_name).toBe("fth/zai-org-GLM-5.3");
   });
 
   test("does not retarget an older same-named custom provider or adapter", () => {

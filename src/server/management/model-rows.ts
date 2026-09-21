@@ -31,7 +31,7 @@ import type { ExportModel } from "../../clients/config-export";
 import { providerContextCap } from "../../providers/context-cap";
 import { isVisionReasoningEffort } from "../../reasoning-effort";
 import { routedSlug, slugEquals } from "../../providers/slug-codec";
-import type { OcxConfig } from "../../types";
+import { modelInList, type OcxConfig } from "../../types";
 import { ensureCodexEntitlementFreshness } from "../../codex/model-entitlements";
 import { fetchAllModels } from "./shared";
 import { initialModelSelectionPending, pendingModelSelectionProviders } from "../../providers/initial-model-selection";
@@ -147,6 +147,8 @@ export async function listManagementModelRows(
   });
   const customModels: ManagementModelRow[] = (config.customModels ?? []).map(cm => {
     const namespaced = routedSlug(cm.provider, cm.modelId);
+    const provider = config.providers[cm.provider];
+    const reasoningDisabled = modelInList(provider?.noReasoningModels, cm.modelId);
     return {
       provider: cm.provider,
       id: cm.modelId,
@@ -160,11 +162,17 @@ export async function listManagementModelRows(
       // Stored override, not the inherited ladder: the edit dialog must show what the user
       // set (including an explicit empty "no reasoning" ladder), not what the provider row
       // happens to advertise today.
-      ...(Array.isArray(cm.reasoningEfforts) ? { reasoningEfforts: [...cm.reasoningEfforts] } : {}),
+      ...(reasoningDisabled
+        ? { reasoningEfforts: [] }
+        : Array.isArray(cm.reasoningEfforts)
+          ? { reasoningEfforts: [...cm.reasoningEfforts] }
+          : {}),
       // The stored default rides along so a client reloading /api/models can restore the
       // full edit state; the GUI has no default-effort control today, but dropping it here
       // would make any future PUT-based edit lose it silently.
-      ...(cm.defaultReasoningEffort ? { defaultReasoningEffort: cm.defaultReasoningEffort } : {}),
+      ...(!reasoningDisabled && cm.defaultReasoningEffort
+        ? { defaultReasoningEffort: cm.defaultReasoningEffort }
+        : {}),
     };
   });
   const publicModels = uniqueCatalogModelsForPublicList(models);
@@ -197,7 +205,9 @@ export async function listManagementModelRows(
     const contextCap = providerContextCap(config, m.provider);
     const nativeAlias = m.provider === "combo" && m.nativeAlias === true;
     const displayName = effectiveManagementDisplayName(config, m);
-    return {
+    const provider = config.providers[m.provider];
+    const reasoningDisabled = modelInList(provider?.noReasoningModels, m.id);
+    const row: ManagementModelRow = {
       ...m,
       ...displayName,
       namespaced,
@@ -206,6 +216,15 @@ export async function listManagementModelRows(
       )),
       ...(contextCap !== undefined ? { contextCap, contextCapped: m.contextCapped === true } : {}),
     };
+    // `noReasoningModels` is authoritative at the wire boundary. The public catalog can
+    // still carry a generic registry ladder, so project it as an explicit empty ladder
+    // before any client export sees the row. Otherwise OMP (and every other exported
+    // client) advertises effort levels that the router deliberately strips from requests.
+    if (reasoningDisabled) {
+      row.reasoningEfforts = [];
+      delete row.defaultReasoningEffort;
+    }
+    return row;
   }).filter((row): row is ManagementModelRow => row !== null);
   // Manual OpenAI rows retain their routed selector but replace the bare dashboard row.
   // Account-qualified rows remain distinct, explicitly selected routes.

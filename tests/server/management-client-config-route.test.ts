@@ -397,6 +397,39 @@ describe("GET /api/client-config", () => {
     expect(JSON.stringify(body.config)).not.toContain(REAL_LOOKING_KEY);
   }, 15_000);
 
+  test("OMP omits effort controls for a provider noReasoningModels override", async () => {
+    const config = baseConfig();
+    config.providers.a!.noReasoningModels = ["m1"];
+
+    const rows = await modelRows(config);
+    const managementRow = rows.find(row => row.namespaced === "a/m1")!;
+    expect(managementRow.reasoningEfforts).toEqual([]);
+    expect(managementRow.defaultReasoningEffort).toBeUndefined();
+
+    const response = await clientConfigApi(config, "?client=omp");
+    expect(response.status).toBe(200);
+    const body = await response.json() as ClientConfigEnvelope;
+    const model = (body.config as PiGeneratedConfig).providers[OPENCODE_PROVIDER_ID]!.models
+      .find(entry => entry.id === "a/m1")!;
+
+    expect(model).not.toHaveProperty("reasoning");
+    expect(model).not.toHaveProperty("thinking");
+
+    // A manual metadata override must not bypass the provider-wide prohibition.
+    config.customModels = [{
+      id: "manual-m1",
+      provider: "a",
+      modelId: "m1",
+      displayName: "Manual M1",
+      reasoningEfforts: ["high"],
+      defaultReasoningEffort: "high",
+    }];
+    const customRows = await modelRows(config);
+    const customRow = customRows.find(row => row.namespaced === "a/m1")!;
+    expect(customRow.reasoningEfforts).toEqual([]);
+    expect(customRow.defaultReasoningEffort).toBeUndefined();
+  }, 15_000);
+
   test("DSH response keeps management reasoning metadata in the rc.6 model map", async () => {
     writeFileSync(join(entitlementCodexHome, "auth.json"), JSON.stringify({
       tokens: { access_token: "dsh-token", account_id: "dsh-main" },

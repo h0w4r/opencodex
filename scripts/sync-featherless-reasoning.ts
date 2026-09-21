@@ -20,6 +20,7 @@ let inspected = 0;
 let toggles = 0;
 let budgets = 0;
 let fixedOrUnknown = 0;
+let inconclusivePreserved = 0;
 
 for (const [providerName, provider] of Object.entries(config.providers)) {
   if (!isFeatherlessCatalogProvider(provider)) continue;
@@ -29,16 +30,17 @@ for (const [providerName, provider] of Object.entries(config.providers)) {
   for (const model of models) {
     const profile = await probeFeatherlessReasoningProfile(model.modelId, token);
     inspected++;
-    if (profile.kind === "toggle") toggles++;
+    if (!profile.complete) inconclusivePreserved++;
+    else if (profile.kind === "toggle") toggles++;
     else if (profile.kind === "budget") budgets++;
     else fixedOrUnknown++;
     if (apply) applyFeatherlessReasoningProfile(provider, model, profile);
     console.log(
-      `[${inspected}/${models.length}] ${model.modelId}: ${profile.kind}`
+      `[${inspected}/${models.length}] ${model.modelId}: ${profile.complete ? profile.kind : "inconclusive-preserved"}`
       + (profile.reasoningEfforts.length > 0 ? ` (${profile.reasoningEfforts.join(",")})` : ""),
     );
   }
 }
 
 if (apply) saveConfigPreservingClaudeCode(config);
-console.log(JSON.stringify({ apply, inspected, toggles, budgets, fixedOrUnknown }));
+console.log(JSON.stringify({ apply, inspected, toggles, budgets, fixedOrUnknown, inconclusivePreserved }));

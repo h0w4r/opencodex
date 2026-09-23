@@ -1,11 +1,11 @@
 {
-  "runId": "2026-09-23T02-03-24-236Z-df7e89a3",
-  "reason": "Revisado visualmente en desktop y móvil tras actualizar a OpenCodex 2.63.0: layout legible, sin overflow, filtros y persistencia reales; las diferencias corresponden a la versión y estilos actualizados de upstream.",
-  "approvedAt": "2026-09-23T02:05:08.916Z",
+  "runId": "2026-09-23T02-22-43-548Z-3f156db3",
+  "reason": "Baseline revisada: máscara limitada a controles GitHub asíncronos; catálogo, geometría, persistencia, a11y y vistas desktop/móvil correctos.",
+  "approvedAt": "2026-09-23T02:24:45.814Z",
   "files": [
     {
       "path": "desktop/route-0.png",
-      "sha256": "9a772c4aec2c573a374172e1543b6dca1fd2e3fbf9624c381a8babc2bbc63e68"
+      "sha256": "a1ca3ec0f5e5559fcabc0dbfd52062bd115d4f1d68aa6f3e072eb24a062e4e6a"
     },
     {
       "path": "mobile/route-0.png",

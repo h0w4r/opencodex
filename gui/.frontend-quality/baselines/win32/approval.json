@@ -1,15 +1,15 @@
 {
-  "runId": "2026-09-20T22-16-56-123Z-8d0a500a",
-  "reason": "Revisadas capturas desktop y móvil: restricciones separadas de navegación, nombres y controles legibles sin overflow; sólo se enmascaran fecha y contador variables verificados por interacción real.",
-  "approvedAt": "2026-09-20T22:19:49.723Z",
+  "runId": "2026-09-23T02-03-24-236Z-df7e89a3",
+  "reason": "Revisado visualmente en desktop y móvil tras actualizar a OpenCodex 2.63.0: layout legible, sin overflow, filtros y persistencia reales; las diferencias corresponden a la versión y estilos actualizados de upstream.",
+  "approvedAt": "2026-09-23T02:05:08.916Z",
   "files": [
     {
       "path": "desktop/route-0.png",
-      "sha256": "69367e2534d11c9f42d34c1472fdcb4728cca46e0628d5d50dc8654878c0d9db"
+      "sha256": "9a772c4aec2c573a374172e1543b6dca1fd2e3fbf9624c381a8babc2bbc63e68"
     },
     {
       "path": "mobile/route-0.png",
-      "sha256": "f195c4144304f6b82ca4aa4a7c2de86bbac8a88340bedc5c19a793615499f413"
+      "sha256": "ccb7cf7067a17a6d71b754d1f810899f4e3c52c323cfc42ed81c4b8a76618087"
     }
   ]
 }

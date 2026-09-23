@@ -1,6 +1,5 @@
 # Runtime
 > Ampliación local: [catálogo Featherless, selección y límites](featherless-catalog.md).
-
 ## Resolved static model policy
 
 `src/router.ts` attaches one frozen `ResolvedModelPolicy` to every `RouteResult`. Policy/combo

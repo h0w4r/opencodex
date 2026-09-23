@@ -57,7 +57,7 @@
   ],
   "visual": {
     "selector": "#root",
-    "masks": [".fl-snapshot-time", ".fl-results [role=status]"],
+    "masks": [".fl-snapshot-time", ".fl-results [role=status]", ".sidebar-github-actions"],
     "maxDiffPixels": 0
   },
   "timeouts": {

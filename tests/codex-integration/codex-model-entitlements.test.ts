@@ -83,6 +83,24 @@ function deferred<T = void>(): {
 beforeEach(() => resetCodexModelEntitlementCacheForTests());
 
 describe("Codex account model entitlements", () => {
+  test("retains authenticated access programs alongside model entitlement slugs", async () => {
+    const answer = await resolveCodexModelEntitlements({ codexAccounts: [] }, {
+      credentials: [credential("main")],
+      clientVersion: "0.155.1",
+      fetcher: (async () => Response.json({ models: [
+        { slug: SOL, supported_in_api: true, visibility: "list", available_access_programs: { cyber: ["standard", "daybreak_blue"] } },
+        { slug: DAYBREAK, supported_in_api: true, visibility: "list", available_access_programs: { cyber: ["daybreak_blue"] } },
+        { slug: ASTRA, supported_in_api: true, visibility: "list", available_access_programs: { cyber: ["standard"] } },
+        { slug: "hidden", supported_in_api: true, visibility: "hide", available_access_programs: { cyber: ["daybreak_blue"] } },
+      ] })) as typeof fetch,
+    });
+    const programs = answer.accessProgramsByAccount?.get("main");
+    expect(programs?.get(SOL)).toEqual({ cyber: ["standard", "daybreak_blue"] });
+    expect(programs?.get(DAYBREAK)).toEqual({ cyber: ["daybreak_blue"] });
+    expect(programs?.get(ASTRA)).toEqual({ cyber: ["standard"] });
+    expect(programs?.has("hidden")).toBe(false);
+  });
+
   test("keeps parsed-empty distinct from refresh failures end to end", async () => {
     const isolated = installIsolatedCodexHome("ocx-entitlement-provenance-");
     const accountId = "pool-provenance";

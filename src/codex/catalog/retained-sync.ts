@@ -67,6 +67,7 @@ import {
   type PreparedCatalogFileWrite,
 } from "../internal/catalog-writer";
 import { visibleCodexAccountSelectors } from "./account-models";
+import { applyAuthenticatedNativeAccessPrograms } from "./access-programs";
 import { ACCOUNT_GATED_NATIVE_OPENAI_MODELS, NATIVE_OPENAI_MODELS, NATIVE_RESERVE_MODEL } from "./native-models";
 import { createReserveCatalogProjection, RESERVE_LUNA_METADATA_SOURCE, RESERVE_SOURCE_CATALOG_FIELD } from "./reserve";
 import {
@@ -525,6 +526,14 @@ function writeRetainedCatalogSync({
   });
   clampCatalogModelsToCodexSupport(catalog.models);
   finalizeAutoReviewModelOverride(catalog.models, catalogModelsForMerge, config);
+  // Static model pins cannot represent a particular ChatGPT account's Daybreak permissions.
+  // Overlay only access programs proven by the same authenticated roster as entitlement gating.
+  applyAuthenticatedNativeAccessPrograms(
+    catalog.models,
+    modelEntitlements,
+    bareEligibleAccountIds,
+    accountTargets,
+  );
   // Last mutation before serialization; see `enforceCatalogSlugUniqueness` for why the ordering
   // against the effort clamp is load-bearing rather than cosmetic.
   catalog.models = enforceCatalogSlugUniqueness(catalog.models, true);

@@ -407,12 +407,17 @@ interface CachedAccountModels {
   readonly clientVersion: string;
   readonly expiresAt: number;
   readonly models: ReadonlySet<string>;
+  readonly accessProgramsByModel: ReadonlyMap<string, CodexModelAccessPrograms | null>;
   readonly confirmed: boolean;
   readonly provenance?: CodexModelEntitlementProvenance;
 }
 
+/** Access programs reported by the authenticated Codex roster, never inferred from a model name. */
+export type CodexModelAccessPrograms = Readonly<Record<string, readonly string[]>>;
+
 export interface CodexModelEntitlementSnapshot {
   readonly modelsByAccount: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly accessProgramsByAccount?: ReadonlyMap<string, ReadonlyMap<string, CodexModelAccessPrograms | null>>;
   readonly clientVersionByAccount: ReadonlyMap<string, string>;
   readonly confirmedAccountIds: ReadonlySet<string>;
   readonly credentialIdentities: ReadonlyMap<string, string>;
@@ -633,17 +638,33 @@ async function accountCredentialSnapshot(
   }
 }
 
-function parseAccountModels(text: string): ReadonlySet<string> | null {
+function parseAccountModels(text: string): {
+  models: ReadonlySet<string>;
+  accessProgramsByModel: ReadonlyMap<string, CodexModelAccessPrograms | null>;
+} | null {
   try {
     const payload = JSON.parse(text) as { models?: unknown };
     if (!Array.isArray(payload.models)) return null;
-    const models = payload.models.flatMap(entry => {
-      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
-      const row = entry as { slug?: unknown; supported_in_api?: unknown; visibility?: unknown };
-      if (typeof row.slug !== "string" || row.supported_in_api !== true || row.visibility === "hide") return [];
-      return [row.slug];
-    });
-    return new Set(models);
+    const models = new Set<string>();
+    const accessProgramsByModel = new Map<string, CodexModelAccessPrograms | null>();
+    for (const entry of payload.models) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+      const row = entry as { slug?: unknown; supported_in_api?: unknown; visibility?: unknown; available_access_programs?: unknown };
+      if (typeof row.slug !== "string" || row.supported_in_api !== true || row.visibility === "hide") continue;
+      models.add(row.slug);
+      const programs = row.available_access_programs;
+      if (programs === null) {
+        accessProgramsByModel.set(row.slug, null);
+      } else if (programs && typeof programs === "object" && !Array.isArray(programs)) {
+        const values = Object.entries(programs);
+        if (values.every(([key, value]) => key.length > 0 && Array.isArray(value)
+          && value.every(item => typeof item === "string" && item.length > 0))) {
+          // Copy only validated roster data; a malformed row must not override catalog metadata.
+          accessProgramsByModel.set(row.slug, Object.fromEntries(values.map(([key, value]) => [key, [...value]])));
+        }
+      }
+    }
+    return { models, accessProgramsByModel };
   } catch {
     return null;
   }
@@ -660,6 +681,7 @@ function unconfirmedAccountModels(
     clientVersion,
     expiresAt: now + MODEL_ROSTER_FAILURE_TTL_MS,
     models: new Set(),
+    accessProgramsByModel: new Map(),
     confirmed: false,
     provenance,
   };
@@ -702,8 +724,8 @@ async function fetchAccountModels(
     if (!body.displaySafe || body.truncated) {
       return unconfirmedAccountModels(credential, clientVersion, now, { kind: "unparseable" });
     }
-    const models = parseAccountModels(body.text);
-    if (models === null) {
+    const parsed = parseAccountModels(body.text);
+    if (parsed === null) {
       return unconfirmedAccountModels(credential, clientVersion, now, { kind: "unparseable" });
     }
     // A roster is a confirmation only when it lists something usable. `models` is a Set, and an
@@ -713,7 +735,7 @@ async function fetchAccountModels(
     // account asked under too old a client version answers with no gated rows, and treating
     // that as authoritative is exactly how 2.36.0 denied sol/terra/luna to accounts that own
     // them (#3022). No usable rows means unconfirmed, on the 15s failure TTL, asked again.
-    const usable = models.size > 0;
+    const usable = parsed.models.size > 0;
     if (!usable) {
       return unconfirmedAccountModels(credential, clientVersion, now, { kind: "parsed-empty" });
     }
@@ -726,7 +748,7 @@ async function fetchAccountModels(
       // upstream ever raises its true requirement above the measured constant, that constant is
       // the only thing standing between an entitled account and a five-minute cached denial.
       .some(([modelId, minimum]) => (
-        !models.has(modelId) && compareClientVersions(clientVersion, minimum) < 0
+        !parsed.models.has(modelId) && compareClientVersions(clientVersion, minimum) < 0
       ));
     return {
       credentialIdentity: credential.credentialIdentity,
@@ -734,7 +756,8 @@ async function fetchAccountModels(
       expiresAt: now + (!hasUnknownGatedAbsence
         ? MODEL_ROSTER_TTL_MS
         : MODEL_ROSTER_FAILURE_TTL_MS),
-      models,
+      models: parsed.models,
+      accessProgramsByModel: parsed.accessProgramsByModel,
       confirmed: true,
     };
   } catch (error) {
@@ -796,6 +819,7 @@ async function modelsForCredential(
       clientVersion,
       expiresAt: now,
       models: new Set(),
+      accessProgramsByModel: new Map(),
       confirmed: false,
     };
   }
@@ -811,6 +835,7 @@ async function modelsForCredential(
       clientVersion,
       expiresAt: now,
       models: new Set(),
+      accessProgramsByModel: new Map(),
       confirmed: false,
     };
   }
@@ -1173,6 +1198,8 @@ export async function resolveCodexModelEntitlements(
   })));
   return {
     modelsByAccount: new Map(results.map(({ credential, result }) => [credential.accountId, result.models])),
+    accessProgramsByAccount: new Map(results.flatMap(({ credential, result }) => result.confirmed
+      ? [[credential.accountId, result.accessProgramsByModel] as const] : [])),
     clientVersionByAccount: new Map(results.map(({ credential, result }) => (
       [credential.accountId, result.clientVersion]
     ))),
@@ -1516,6 +1543,7 @@ export function seedCodexModelEntitlementsForTests(
     clientVersion,
     expiresAt: now + MODEL_ROSTER_TTL_MS,
     models: new Set(models),
+    accessProgramsByModel: new Map(),
     confirmed: true,
   });
 }

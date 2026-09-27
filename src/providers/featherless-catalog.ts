@@ -62,6 +62,11 @@ export function isFeatherlessCatalogProvider(provider: { baseUrl: string; adapte
   return provider.adapter === "openai-chat" && provider.baseUrl.replace(/\/+$/, "") === "https://api.featherless.ai/v1";
 }
 
+/** El contrato oficial admite owner%2Fmodel como un solo segmento de detalle. */
+export function featherlessDetailUrl(id: string): string {
+  return `https://api.featherless.ai/v1/models/${encodeURIComponent(id)}`;
+}
+
 export interface FeatherlessModel {
   id: string;
   parameterSize: number | null;

@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getConfigDir } from "../config/paths";
 import { atomicWriteFileAsync } from "../config/atomic-write";
-import { FEATHERLESS_EXCEPTION, applyFeatherlessToolProof, classifyFeatherlessModel, fetchFeatherlessSourcePage, fetchFeatherlessWithRetry, featherlessSearchUrl, type FeatherlessModel, type FeatherlessPage } from "./featherless-catalog";
+import { FEATHERLESS_EXCEPTION, applyFeatherlessToolProof, classifyFeatherlessModel, featherlessDetailUrl, fetchFeatherlessSourcePage, fetchFeatherlessWithRetry, featherlessSearchUrl, type FeatherlessModel, type FeatherlessPage } from "./featherless-catalog";
 import { fingerprintFeatherlessCapabilityEvidence, loadFeatherlessCapabilityEvidence, type FeatherlessCapabilityProof } from "./featherless-capability-evidence";
 import { parameterBucket, queryFeatherlessIndex } from "./featherless-index-query";
 
@@ -99,7 +99,8 @@ async function build(parameters: URLSearchParams, state: State, proofs: Map<stri
 }
 
 async function fetchProvenModel(proof: FeatherlessCapabilityProof): Promise<FeatherlessModel | undefined> {
-  const response = await fetchFeatherlessWithRetry(`https://api.featherless.ai/v1/models/${proof.modelId.split("/").map(encodeURIComponent).join("/")}`,
+  // La evidencia runtime también se revalida contra el detalle documentado.
+  const response = await fetchFeatherlessWithRetry(featherlessDetailUrl(proof.modelId),
     { redirect: "error" });
   if (response.status === 404) return undefined;
   if (!response.ok) throw new Error(`Metadatos de evidencia runtime: HTTP ${response.status}.`);
@@ -168,7 +169,8 @@ export async function findFeatherlessModel(id: string): Promise<FeatherlessModel
   if (!state.snapshot.models.some(model => model.id === id)) return undefined;
   // Revalida contra el detalle documentado: una retirada de soporte no queda
   // autorizada durante seis horas simplemente por existir en una caché anterior.
-  const response = await fetchFeatherlessWithRetry(`https://api.featherless.ai/v1/models/${id.split("/").map(encodeURIComponent).join("/")}`,
+  // La ruta codificada evita el enrutamiento remoto ambiguo de owner/model.
+  const response = await fetchFeatherlessWithRetry(featherlessDetailUrl(id),
     { redirect: "error" });
   if (response.status === 404) return undefined;
   if (!response.ok) throw new Error(`Metadatos de selección: HTTP ${response.status}.`);

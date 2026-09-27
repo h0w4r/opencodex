@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { classifyFeatherlessModel, featherlessInputModalities, featherlessSearchUrl, featherlessSourceUrl, fetchFeatherlessWithRetry, isFeatherlessCatalogProvider } from "../../src/providers/featherless-catalog";
+import { classifyFeatherlessModel, featherlessDetailUrl, featherlessInputModalities, featherlessSearchUrl, featherlessSourceUrl, fetchFeatherlessWithRetry, isFeatherlessCatalogProvider } from "../../src/providers/featherless-catalog";
 
 describe("Política transversal del catálogo Featherless", () => {
+  test("detalle usa el ID codificado como un solo segmento", () => {
+    expect(featherlessDetailUrl("Qwen/Qwen3.8-27B"))
+      .toBe("https://api.featherless.ai/v1/models/Qwen%2FQwen3.8-27B");
+  });
   test("restricciones en origen no amplían excepciones con un OR de toda la faceta tools", () => {
     const source = featherlessSourceUrl(new URLSearchParams("capabilities=red-teaming"));
     expect(source.searchParams.getAll("capabilities")).toEqual(["red-teaming"]);

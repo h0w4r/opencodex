@@ -146,7 +146,9 @@ export async function handleResponsesWithPolicyFallback(
     } : {}),
     onRequestBodyParsed: body => {
       options.onRequestBodyParsed?.(body);
-      if (body && typeof body === "object" && !Array.isArray(body)) rawBody = body as Record<string, unknown>;
+      // Keep the caller's original top-level instructions. Route preparation may replace
+      // them for an external attempt; a later native candidate must reparse the native base.
+      if (body && typeof body === "object" && !Array.isArray(body)) rawBody = { ...body as Record<string, unknown> };
     },
     onStoredPool401ReplayDispatched: () => {
       storedPool401ReplayDispatched = true;

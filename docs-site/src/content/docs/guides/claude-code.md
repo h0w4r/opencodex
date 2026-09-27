@@ -54,6 +54,19 @@ See [Configuration](/reference/configuration/#anthropicaccountpool-experimental)
 
 ## Quickstart
 
+### External-model-only base prompt
+
+`externalModelPrompts.claudeCode` in OpenCodex's private `config.json` may name
+an absolute local Markdown file. Routed Claude Code Messages turns use it only
+after selection resolves to a non-`anthropic` provider. Native Anthropic
+passthrough retains Claude Code's original system text. The same rule covers
+the Code tab and standalone CLI, while the Chat tab is unchanged.
+
+This is a gateway-side base replacement, not a global change to Claude Code's
+`CLAUDE.md` or `settings.json`. Existing project/user memory remains a separate
+client layer. The exact configuration and failure behavior are documented in
+the [Codex prompt guide](/guides/codex-prompt/#external-model-only-base-prompts).
+
 ```bash
 ocx claude
 ```

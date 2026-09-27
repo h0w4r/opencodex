@@ -1501,5 +1501,8 @@
   "update-bun-ownership-lease.test.ts": "update",
   "featherless-catalog-policy.test.ts": "providers",
   "featherless-index-query.test.ts": "providers",
-  "featherless-capability-evidence.test.ts": "providers"
+  "featherless-capability-evidence.test.ts": "providers",
+  "external-model-prompt.test.ts": "server",
+  "external-model-prompt-route.test.ts": "codex-integration",
+  "codex-catalog-access-programs.test.ts": "codex-integration"
 }

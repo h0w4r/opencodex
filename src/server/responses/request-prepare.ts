@@ -111,6 +111,7 @@ import {
   CODEX_RESERVE_OPT_IN_REQUIRED_MESSAGE,
 } from "../../codex/loopback-target";
 import { checkComboTargetInputAdmission, checkInputAdmission } from "./input-admission";
+import { externalPromptPathForRoute, readExternalModelPrompt, replaceExternalBasePrompt } from "./external-model-prompt";
 import {
   admissionModelDeniedResponse,
   AdmissionModelDeniedError,
@@ -1066,6 +1067,17 @@ export async function prepareResponsesRequest(
     inboundTransport: options.inboundTransport,
     claudeGoAffinity: options.claudeGoAffinity,
   });
+  // Apply an operator-owned external base only after the final provider is known.
+  // This preserves native Codex/Claude requests and works after model picker changes.
+  const externalPromptPath = externalPromptPathForRoute(config, route, inboundWire, req.headers);
+  if (externalPromptPath) {
+    try {
+      replaceExternalBasePrompt(parsed, readExternalModelPrompt(externalPromptPath), inboundWire === "anthropic");
+    } catch (error) {
+      return formatErrorResponse(503, "external_model_prompt_unavailable",
+        error instanceof Error ? error.message : "External model prompt unavailable");
+    }
+  }
   // Normalization is the last thing that can move the destination: resolving an
   // OpenAI virtual model rewrites route.modelId to the wire id that will
   // actually be billed. A scope checked only before this would authorize the

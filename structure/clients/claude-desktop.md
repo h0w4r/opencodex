@@ -32,6 +32,12 @@ belongs to the shared account store. The import CLI adds pool rows independently
 
 ## Desktop modes: first-party and gateway
 
+The optional `externalModelPrompts.claudeCode` file is applied by the routed
+Messages data plane to external providers, not by a global rewrite of
+Claude Code's `settings.json` or `CLAUDE.md`. Native Anthropic passthrough keeps
+the original client base. The Code tab and CLI share the Messages boundary;
+the ordinary Claude Desktop Chat tab is outside this feature.
+
 `src/claude/desktop-first-party.ts` owns the Desktop mode contract. Two modes exist and are
 mutually exclusive on one machine:
 

@@ -10,6 +10,34 @@ and lets you switch off the parts you do not want.
 
 ## What the list shows
 
+### External-model-only base prompts
+
+The controls on this page edit Codex's global `config.toml`; they are **not** a
+per-model selector. For an external-only base, keep the private prompt in an
+absolute local file and opt into OpenCodex's resolved-route replacement instead:
+
+```json
+{
+  "externalModelPrompts": {
+    "codex": "C:/private/external-models-system.md",
+    "claudeCode": "C:/private/external-models-system.md"
+  }
+}
+```
+
+Put these keys in `~/.opencodex/config.json`, not in Codex's `config.toml`.
+Only genuine Codex-originated Responses requests to non-`openai` resolved
+providers use `codex`; Claude Code's translated Messages requests to
+non-`anthropic` resolved providers use `claudeCode`. Native routes keep the
+client's original base. OpenCodex replaces the external request's base at
+dispatch, so a model change in the same client session is covered. Existing
+developer/user messages are retained; a global `CLAUDE.md` is a separate
+Claude Code memory layer and is not removed by this option.
+
+If a configured file is missing, empty, too large, or unreadable, the external
+turn fails with a diagnostic rather than silently inheriting the native base.
+Keep the prompt file and its actual contents out of public forks and bundles.
+
 Each row carries its position in the assembly order, the config key that governs
 it when there is one, and the size of what it actually sent.
 

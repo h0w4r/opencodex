@@ -423,6 +423,11 @@ export interface OcxClientConnectionConfig {
 
 export interface OcxConfig {
   port: number;
+  /** Operator-owned prompt files applied only after an external Codex/Claude route is resolved. */
+  externalModelPrompts?: {
+    codex?: string;
+    claudeCode?: string;
+  };
   /** Runtime topology role. Absence preserves the historical standalone behavior. */
   runtimeRole?: OcxRuntimeRole;
   /** Hub-only public management metadata. Presence is inert outside the hub role. */

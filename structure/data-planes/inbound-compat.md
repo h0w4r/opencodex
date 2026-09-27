@@ -8,6 +8,12 @@ Native steering follows [the shared WebSocket contract](../transports/streaming-
 Compatibility callers retain the public Responses ingress described by the
 [core module ownership](../transports/responses.md#core-module-ownership). This surface retains its existing behavior.
 
+For routed Anthropic Messages, `src/server/claude-messages.ts` delegates base selection
+to the [resolved-route prompt boundary](../transports/responses.md#responses-httpsse).
+Its `count_tokens` estimate mirrors the external base used by a Messages send;
+native Anthropic passthrough and unrelated Chat/Responses ingress retain their
+incoming system instructions. This changes no provider credentials or model catalog.
+
 The configuration-only [plaintext V2 contract](../subagents.md#plaintext-v2-agent-messages)
 is scoped to canonical ChatGPT Responses forwarding; other source-area behavior described here is unchanged. Cursor's localized native-shell names follow the [routing-commentary guard contract](../providers/cursor.md#cursor-native-exec).
 

@@ -110,6 +110,35 @@ describe("policy candidate fallback", () => {
     expect(cloneCalls).toBe(0);
   });
 
+  test("a prompt replacement on an external attempt never leaks into a native retry", async () => {
+    const trace = policyTrace();
+    const logCtx = { requestedModel: "policy/daily", routeDecision: trace, attempts: [] } as unknown as RequestLogContext;
+    const bases: string[] = [];
+    const runCore: NonNullable<PolicyFallbackDeps["runCore"]> = async (req, _config, ctx, options) => {
+      const body = await req.clone().json() as { model: string; instructions: string };
+      options.onRequestBodyParsed?.(body);
+      bases.push(body.instructions);
+      ctx.routeDecision = trace;
+      seedAttempt(ctx, "provider", body.model);
+      if (bases.length === 1) {
+        // Simulate the route-specific replacement performed during request preparation.
+        body.instructions = "External-only base";
+        return Response.json({ error: { code: "service_unavailable" } }, { status: 503 });
+      }
+      return Response.json({ id: "resp", object: "response", status: "completed", output: [] });
+    };
+    const initial = new Request("http://127.0.0.1/v1/responses", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: "policy/daily", instructions: "Native base", input: "hello" }),
+    });
+
+    const response = await handleResponsesWithPolicyFallback(initial, {} as OcxConfig, logCtx, {}, { runCore });
+
+    expect(response.status).toBe(200);
+    expect(bases).toEqual(["Native base", "Native base"]);
+  });
+
   test("a local input-admission refusal hops instead of ending the chain (#1524)", async () => {
     // #1524: a candidate whose context window cannot fit the request used to TERMINATE the
     // fallback chain. It is a local preflight verdict about ONE candidate, not about the

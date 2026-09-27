@@ -16,6 +16,14 @@ Plaintext collaboration restoration treats a null namespace as absent, rejects n
 provider, lets the selected adapter speak the upstream protocol, then bridges adapter events back to
 Responses-compatible streaming output. For an opted-in key-auth provider, a hosted-search continuation stays bound to the API-key selection that served the first leg; the contract is the [hosted-search continuation binding](../providers-and-adapters.md#hosted-search-continuation-binding).
 
+`src/server/responses/request-prepare.ts` consults `src/server/responses/external-model-prompt.ts`
+after settling the provider. A configured Codex base replaces the top-level `instructions`
+only for recognized Codex originators on external routes; canonical `openai` and unrelated
+Responses callers keep their original base. `src/server/responses/policy-fallback.ts`
+snapshots caller instructions before a physical attempt mutates its parsed body, so a later
+native candidate never inherits an external-only base. Each candidate re-evaluates this
+selection against its own resolved provider.
+
 The `openai-responses` adapter preserves the incoming `User-Agent` as a non-credential fallback in
 both key and forward modes. A configured provider header with that name wins case-insensitively;
 when the caller omits it, the adapter invents no client identity. This does not widen the canonical

@@ -113,6 +113,55 @@ function mockConfig(baseUrl: string, claudeCode?: OcxConfig["claudeCode"]): OcxC
   } as OcxConfig;
 }
 
+test("external Claude route replaces its base before the provider wire", async () => {
+  const upstream = mockChatUpstreamCapturing();
+  const promptPath = join(testDir, "private-external-prompt.md");
+  writeFileSync(promptPath, "Unique external Claude system base");
+  saveConfig({
+    ...mockConfig(`${upstream.server.url.toString().replace(/\/$/, "")}/v1`),
+    externalModelPrompts: { claudeCode: promptPath },
+  });
+  const server = startServer(0);
+  try {
+    const response = await fetch(new URL("/v1/messages", server.url), {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": "placeholder" },
+      body: JSON.stringify({
+        model: "mock/test-model",
+        max_tokens: 64,
+        stream: false,
+        system: "Original Claude system base",
+        messages: [{ role: "user", content: "hi" }],
+      }),
+    });
+    expect(response.status).toBe(200);
+    await response.text(); // Drain the client body before releasing the Windows test home.
+    expect(upstream.captured).toHaveLength(1);
+    const wire = JSON.stringify(upstream.captured[0]);
+    expect(wire).toContain("Unique external Claude system base");
+    expect(wire).not.toContain("Original Claude system base");
+    const countResponse = await fetch(new URL("/v1/messages/count_tokens", server.url), {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": "placeholder" },
+      body: JSON.stringify({
+        model: "mock/test-model",
+        system: "Original Claude system base",
+        messages: [{ role: "user", content: "hi" }],
+      }),
+    });
+    expect(countResponse.status).toBe(200);
+    const count = await countResponse.json() as { input_tokens: number };
+    expect(count.input_tokens).toBe(estimateClaudeRequestTokens({
+      model: "mock/test-model",
+      system: "Unique external Claude system base",
+      messages: [{ role: "user", content: "hi" }],
+    }, "mock/test-model"));
+  } finally {
+    await server.stop(true);
+    await upstream.server.stop(true);
+  }
+}, { timeout: SERVER_BUDGET_MS });
+
 test("POST /v1/messages?beta=true streams an Anthropic-shaped turn end to end", async () => {
   const upstream = mockChatUpstream();
   saveConfig(mockConfig(`${upstream.url.toString().replace(/\/$/, "")}/v1`));

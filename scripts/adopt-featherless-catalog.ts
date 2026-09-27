@@ -3,6 +3,8 @@ import { loadConfig, saveConfigPreservingClaudeCode } from "../src/config";
 import {
   applyFeatherlessToolProof,
   classifyFeatherlessModel,
+  featherlessDetailUrl,
+  fetchFeatherlessWithRetry,
   isFeatherlessCatalogProvider,
 } from "../src/providers/featherless-catalog";
 import { loadFeatherlessCapabilityEvidence } from "../src/providers/featherless-capability-evidence";
@@ -21,8 +23,9 @@ for (const [name, provider] of Object.entries(config.providers)) {
     ...(config.customModels ?? []).filter(m => m.provider === name).map(m => m.modelId)]);
   for (const id of ids) {
     if (config.disabledModels?.some(slug => slugEquals(slug, name, id))) continue;
-    const response = await fetch(`https://api.featherless.ai/v1/models/${id.split("/").map(encodeURIComponent).join("/")}`,
-      { redirect: "error", signal: AbortSignal.timeout(30000) });
+    // La API documenta owner%2Fmodel como un único segmento; reutiliza además
+    // la política acotada de reintentos para los fallos transitorios del proveedor.
+    const response = await fetchFeatherlessWithRetry(featherlessDetailUrl(id), { redirect: "error" });
     if (response.status === 404) { rejected.push({ provider: name, id, reason: "not-found" }); continue; }
     if (!response.ok) throw new Error(`No se modificó la selección: metadatos HTTP ${response.status}.`);
     let model = classifyFeatherlessModel(await response.json());

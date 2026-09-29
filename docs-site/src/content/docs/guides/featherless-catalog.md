@@ -53,6 +53,15 @@ hay que ejecutar una interacción real con herramientas y su continuación.
 - La popularidad es relativa al conjunto admitido. Los órdenes de tendencia y
   valoración conservan orden publicado por conjuntos: el proveedor no expone
   puntuaciones globales que permitan una mezcla exacta sin recorrer su universo.
+- El botón **Habilitar** revalida además el estado de despliegue en la ficha
+  oficial. Sólo `status=active` se incorpora al selector; `not_deployed` y
+  `pending_deploy` siguen visibles para explorar, pero la API devuelve HTTP 409
+  hasta que Featherless los despliegue. Modelos anteriormente seleccionados
+  pueden deshabilitarse sin perder su definición.
+- Un modelo `active` tampoco garantiza GPU disponible en todo instante:
+  HTTP 503 («at capacity») procede de Featherless y es transitorio;
+  reintenta más tarde o elige otro modelo activo. OpenCodex no puede
+  conceder capacidad de cómputo del proveedor.
 - El botón **Habilitar** revalida la política en el backend y guarda el modelo
   en `OcxConfig.customModels`. Una petición directa no omite esa comprobación.
 - Deshabilitar una selección previa funciona aunque ya no exista en el catálogo.

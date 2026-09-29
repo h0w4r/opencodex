@@ -110,14 +110,17 @@ aunque el ID figure en el índice, para detectar una retirada de soporte.
 1. Reconsulta el identificador recorriendo todas las páginas de la búsqueda si
    existen muchos derivados, y verifica la regla de inclusión. Etiquetas de
    licencia/familia no acreditan una excepción de descensura.
-2. Revalida que el proveedor siga usando el destino oficial y `openai-chat`.
-3. Comprueba colisiones mediante el codec canónico de slugs.
-4. Registra sólo ese modelo en `OcxConfig.customModels` con el ID upstream exacto.
-5. Activa la configuración estática existente `OcxProviderConfig.liveModels=false`,
+2. Revalida en la ficha remota que `status=active` antes de habilitar. Un
+   modelo admitido pero `not_deployed` o `pending_deploy` permanece navegable,
+   pero la API responde HTTP 409 con el estado real y no lo publica para inferencia.
+3. Revalida que el proveedor siga usando el destino oficial y `openai-chat`.
+4. Comprueba colisiones mediante el codec canónico de slugs.
+5. Registra sólo ese modelo en `OcxConfig.customModels` con el ID upstream exacto.
+6. Activa la configuración estática existente `OcxProviderConfig.liveModels=false`,
    evitando que la ruta heredada de primera página reinserte otros cien modelos.
-6. Conserva las selecciones previas y actualiza `OcxConfig.disabledModels` mediante
+7. Conserva las selecciones previas y actualiza `OcxConfig.disabledModels` mediante
    `routedSlug`/`slugEquals`, sin aproximar la codificación de barras.
-7. Persiste mediante el writer existente y solicita convergencia de catálogo.
+8. Persiste mediante el writer existente y solicita convergencia de catálogo.
 
 Deshabilitar un modelo ya configurado no requiere que siga disponible en la API
 pública. Los proveedores con otro destino no son interceptados por llamarse

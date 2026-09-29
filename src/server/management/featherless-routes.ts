@@ -43,6 +43,8 @@ export async function handleFeatherlessRoutes(ctx: ManagementContext): Promise<R
     if (enabled) {
       model = await findFeatherlessModel(id);
       if (!model) return jsonResponse({ error: "El modelo debe declarar tool calling y cumplir la política de 16B/excepciones. El tamaño, nombre o especialización no sustituyen el soporte de herramientas." }, 422, req, config);
+      // El índice conserva modelos elegibles pero no desplegados; sólo se activa inferencia disponible.
+      if (model.status !== "active") return jsonResponse({ error: `Featherless publica ${id} como ${model.status}; todavía no está disponible para inferencia. Consulta su ficha y solicita el despliegue antes de habilitarlo.`, providerStatus: model.status }, 409, req, config);
     }
     // Revalida después del await: no reintroduce un proveedor borrado concurrentemente.
     const current = config.providers[provider];

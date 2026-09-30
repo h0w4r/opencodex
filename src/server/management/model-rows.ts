@@ -29,7 +29,7 @@ import {
 } from "../../codex/catalog";
 import type { ExportModel } from "../../clients/config-export";
 import { providerContextCap } from "../../providers/context-cap";
-import { isVisionReasoningEffort } from "../../reasoning-effort";
+import { configuredReasoningEfforts, isVisionReasoningEffort } from "../../reasoning-effort";
 import { routedSlug, slugEquals } from "../../providers/slug-codec";
 import { modelInList, type OcxConfig } from "../../types";
 import { ensureCodexEntitlementFreshness } from "../../codex/model-entitlements";
@@ -251,7 +251,11 @@ export async function listManagementModelRows(
 }
 
 /** `/api/models` row → the narrower input the client-config serializers accept. */
-export function toExportModel(row: ManagementModelRow): ExportModel {
+export function toExportModel(row: ManagementModelRow, config?: Pick<OcxConfig, "providers">): ExportModel {
+  // La fila de edición no contiene necesariamente el contrato heredado del proveedor.
+  // La GUI y el CLI deben exportar la misma escala efectiva, sin heurísticas del cliente.
+  const provider = config?.providers[row.provider];
+  const efforts = row.reasoningEfforts ?? (provider ? configuredReasoningEfforts(provider, row.id) : undefined);
   return {
     namespaced: row.namespaced,
     provider: row.provider,
@@ -261,7 +265,7 @@ export function toExportModel(row: ManagementModelRow): ExportModel {
     ...(row.displayName && row.displayNameSource !== "fallback" ? { displayName: row.displayName } : {}),
     ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}),
     ...(row.inputModalities ? { inputModalities: row.inputModalities } : {}),
-    ...(row.reasoningEfforts ? { reasoningEfforts: row.reasoningEfforts } : {}),
+    ...(efforts !== undefined || !row.native ? { reasoningEfforts: [...(efforts ?? [])] } : {}),
     ...(row.defaultReasoningEffort ? { defaultReasoningEffort: row.defaultReasoningEffort } : {}),
   };
 }
@@ -311,7 +315,7 @@ export async function loadExportModels(
   // Management deliberately lists the full roster so hidden models can be enabled.
   // A client picker must also honor the provider selection, not just its blocklist.
   const visibleRouted = new Set(filterCatalogVisibleModels(rows.filter(row => !row.native), admitted));
-  const exported = rows.filter(row => !row.disabled && (row.native || visibleRouted.has(row))).map(toExportModel);
+  const exported = rows.filter(row => !row.disabled && (row.native || visibleRouted.has(row))).map(row => toExportModel(row, admitted));
   // Retain the FINAL projection, not an input to it. A preview that rebuilt from raw provider
   // caches would miss static and forward providers, which never populate one, and would skip the
   // retention, metadata, combo and filtering this function applies afterwards.

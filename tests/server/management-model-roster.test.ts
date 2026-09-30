@@ -221,3 +221,21 @@ describe("a preview reads only a roster an authoritative load already finished",
     expect(fresh?.some(model => model.inputModalities?.includes("mutated"))).toBe(false);
   });
 });
+
+
+test("la sincronización GUI conserva controles heredados y ausencia explícita de niveles", async () => {
+  const config = {
+    ...CONFIG,
+    providers: { supplied: { ...CONFIG.providers.supplied, modelReasoningEfforts: { verified: ["low", "high"] } } },
+    customModels: [{id:"known",provider:"supplied",modelId:"verified"}, {id:"future",provider:"supplied",modelId:"future"}],
+    fastRows: false,
+  } as OcxConfig;
+  const exported = await loadExportModels(config, []);
+  expect(exported.find(model => model.id === "verified")?.reasoningEfforts).toEqual(["low", "high"]);
+  expect(exported.find(model => model.id === "future")?.reasoningEfforts).toEqual([]);
+  const { buildOmpClientConfig } = await import("../../src/clients/config-export/omp");
+  const generated = buildOmpClientConfig({baseUrl:"http://127.0.0.1:10100/v1",models:exported});
+  const future = generated.providers.opencodex?.models.find(model => model.id === "supplied/future");
+  expect(future?.reasoning).toBe(false);
+  expect(future).not.toHaveProperty("thinking");
+});

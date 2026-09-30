@@ -568,3 +568,5 @@ La reconciliación automática revalida controles Featherless fuera del camino d
 inferencia antes de sellar el catálogo. Tras un commit con cambios, reutiliza el
 coordinador de integraciones ya habilitadas para propagar sus escalas a OMP y
 otros clientes registrados; no modifica clientes sin ownership previo.
+
+Las entradas externas conservan exclusivamente la escala declarada: sin metadata no heredan niveles GPT; no se añaden max/ultra sintéticos. Los aliases nativos explícitos conservan su metadata nativa. La exportación resuelve el contrato efectivo del proveedor antes de exponer controles a cualquier cliente.

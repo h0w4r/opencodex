@@ -57,7 +57,7 @@ describe("provider-specific reasoning effort mapping", () => {
     const neuralwatt = entries.find(e => e.slug === "neuralwatt/glm-5.2");
     const kimi = entries.find(e => e.slug === "moonshot/kimi-k2.7-code");
 
-    expect((neuralwatt?.supported_reasoning_levels as { effort: string }[]).map(l => l.effort)).toEqual(["low", "medium", "high", "xhigh", "max", "ultra"]);
+    expect((neuralwatt?.supported_reasoning_levels as { effort: string }[]).map(l => l.effort)).toEqual(["low", "medium", "high", "xhigh", "max"]);
     expect(neuralwatt?.default_reasoning_level).toBe("medium");
     expect(kimi?.supported_reasoning_levels).toEqual([]);
     expect(kimi).not.toHaveProperty("default_reasoning_level");
@@ -618,9 +618,9 @@ describe("provider-specific reasoning effort mapping", () => {
     const empty = entries.find(e => e.slug === "test/model-empty");
 
     const withMaxEfforts = (withMax?.supported_reasoning_levels as { effort: string }[]).map(l => l.effort);
-    expect(withMaxEfforts).toEqual(["low", "high", "max", "ultra"]);
+    expect(withMaxEfforts).toEqual(["low", "high", "max"]);
 
-    expect((clean?.supported_reasoning_levels as { effort: string }[]).map(l => l.effort)).toEqual(["low", "medium", "high", "xhigh", "max", "ultra"]);
+    expect((clean?.supported_reasoning_levels as { effort: string }[]).map(l => l.effort)).toEqual(["low", "medium", "high", "xhigh"]);
 
     expect(empty?.supported_reasoning_levels).toEqual([]);
   });
@@ -915,7 +915,7 @@ describe("ultra reasoning effort (upstream codex-rs parity)", () => {
     const levels = opted?.supported_reasoning_levels as { effort: string; description: string }[];
     expect(levels.map(l => l.effort)).toEqual(["low", "medium", "high", "xhigh", "max", "ultra"]);
     expect(levels[levels.length - 1]?.description).toBe("Maximum reasoning with automatic task delegation");
-    expect((dflt?.supported_reasoning_levels as { effort: string }[]).map(l => l.effort)).toEqual(["low", "medium", "high", "xhigh", "max", "ultra"]);
+    expect(dflt?.supported_reasoning_levels).toEqual([]);
   });
 
   test("no-template native GPT-5.6 fallback entries also advertise max and ultra", () => {
@@ -1035,5 +1035,17 @@ describe("stale reasoning-ladder self-heal", () => {
     } as OcxParsedRequest);
     const bodyLow = JSON.parse(reqLow.body as string);
     expect(bodyLow.reasoning_effort).toBe("low");
+  });
+});
+
+describe("contrato externo sin síntesis de esfuerzos", () => {
+  test("no hereda la escala GPT cuando faltan capacidades del proveedor", () => {
+    const entries = buildCatalogEntries(nativeTemplate(), [], [
+      { provider: "xai", id: "future-model" },
+      { provider: "xai", id: "verified-model", reasoningEfforts: ["low", "medium", "high", "xhigh"] },
+    ]);
+    expect(entries.find(entry => entry.slug === "xai/future-model")?.supported_reasoning_levels).toEqual([]);
+    expect(entries.find(entry => entry.slug === "xai/future-model")).not.toHaveProperty("default_reasoning_level");
+    expect((entries.find(entry => entry.slug === "xai/verified-model")?.supported_reasoning_levels as {effort:string}[]).map(level => level.effort)).toEqual(["low", "medium", "high", "xhigh"]);
   });
 });

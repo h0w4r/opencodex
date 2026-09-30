@@ -164,11 +164,12 @@ export function deriveEntry(
       }
       applyReasoningLevels(
         e,
-        model?.reasoningEfforts,
+        model?.reasoningEfforts ?? (codexForwardNativeCapabilityAlias
+          ? (Array.isArray(e.supported_reasoning_levels) ? e.supported_reasoning_levels.map((level: { effort: string }) => level.effort) : [])
+          : []),
         model?.defaultReasoningEffort,
-        preserveExactReasoning
-          || codexForwardNativeCapabilityAlias !== null
-          || preservePinnedNativeCustomReasoning(model),
+        // El catálogo externo es un contrato, no una copia de niveles GPT ni aliases sintéticos.
+        true,
         model?.suppressSyntheticMax === true,
       );
       // This exact provider/model pair is the ChatGPT/Codex forward surface. Keep the pinned
@@ -220,9 +221,9 @@ export function deriveEntry(
     applyRoutedCodexToolMode(entry, model?.codexToolMode);
     applyReasoningLevels(
       entry,
-      model?.reasoningEfforts,
+      model?.reasoningEfforts ?? [],
       model?.defaultReasoningEffort,
-      preserveExactReasoning || preservePinnedNativeCustomReasoning(model),
+      true,
       model?.suppressSyntheticMax === true,
     );
   }

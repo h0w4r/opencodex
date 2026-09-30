@@ -1170,3 +1170,11 @@ test("an explicit empty effort ladder survives the real proxy-to-client export p
   expect(generated.providers.opencodex?.models[0]?.reasoning).toBe(false);
   expect(generated.providers.opencodex?.models[0]).not.toHaveProperty("thinking");
 });
+
+test("la exportación usa capacidades heredadas y no inventa niveles desconocidos", () => {
+  const config = { port: 10100, defaultProvider: "xai", providers: { xai: { adapter: "openai-chat", baseUrl: "https://example.invalid/v1", modelReasoningEfforts: { verified: ["low", "high"] } } } } as OcxConfig;
+  const rows = [{provider:"xai",id:"verified",namespaced:"xai/verified"}, {provider:"xai",id:"future",namespaced:"xai/future"}];
+  const exported = exportModelsFromProxyRows(rows, config);
+  expect(exported.find(model=>model.id==="verified")?.reasoningEfforts).toEqual(["low", "high"]);
+  expect(exported.find(model=>model.id==="future")?.reasoningEfforts).toEqual([]);
+});

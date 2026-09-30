@@ -54,6 +54,10 @@ provider-wide fallback. Exact model output limits precede the provider default o
   invokes the existing catalog-only convergence funnel on Codex app-server launch or a versioned
   Codex Desktop runtime-directory update. The process-name prefilter is cheap; ownership and
   command-line verification run only on new process ids. A failed watcher leaves polling active;
+- extends the bundled native read with only roster-marked rows in the live Codex catalog, so
+  `GET /v1/models` and Codex's `?client_version=` response publish a later native release
+  without waiting for a new bundled snapshot. Static pins still win for known models; unknown
+  models keep their own exact effort ladder, modality and context metadata;
 
 - preserves native OpenAI entries from the live catalog or static fallback, and emits
   gpt-5.6 natives from the pinned upstream models.json snapshot

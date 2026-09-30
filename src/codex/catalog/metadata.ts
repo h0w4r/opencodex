@@ -224,6 +224,21 @@ const PINNED_NATIVE_CAPABILITY_ENTRIES: Map<string, RawEntry> = new Map(
   }),
 );
 
+/** Only roster-marked rows may extend the immutable bundled native roster. */
+function authenticatedNativeCatalogEntry(slug: string): RawEntry | undefined {
+  if (slug.includes("/") || !/^(?:gpt|codex)-[a-z0-9][a-z0-9._-]*$/.test(slug)) return undefined;
+  const row = readCurrentCodexCatalog()?.models?.find(entry =>
+    entry.slug === slug && entry[AUTHENTICATED_NATIVE_ROW_FIELD] === true);
+  if (!row) return undefined;
+  const complete = withDerivedBaseInstructions(row);
+  return hasNativeCatalogRowShape(complete) ? complete : undefined;
+}
+
+/** Static pins win for known models; an authenticated row supplies future capabilities. */
+function nativeCapabilityEntry(slug: string): RawEntry | undefined {
+  return PINNED_NATIVE_CAPABILITY_ENTRIES.get(slug) ?? authenticatedNativeCatalogEntry(slug);
+}
+
 /**
  * The user-owned levers that set a native window, carried together.
  *
@@ -300,8 +315,9 @@ export function nativeContextLimits(
 function longWindowOptInCeiling(slug: string): number | undefined {
   if (NATIVE_GPT56_FAMILY.has(slug)) return NATIVE_GPT56_MAX_INPUT_TOKENS;
   const override = NATIVE_OPENAI_CONTEXT_OVERRIDES[slug];
-  const defaultWindow = positiveInt(override?.contextWindow);
-  const longWindow = positiveInt(override?.maxContextWindow);
+  const native = nativeCapabilityEntry(slug);
+  const defaultWindow = positiveInt(override?.contextWindow ?? native?.context_window);
+  const longWindow = positiveInt(override?.maxContextWindow ?? native?.max_context_window);
   if (defaultWindow === undefined || longWindow === undefined || longWindow <= defaultWindow) {
     return undefined;
   }
@@ -326,15 +342,16 @@ function narrowToLimits(raw: number | undefined, slug: string, input: NativeCont
 
 export function nativeOpenAiContextWindow(slug: string, limits?: NativeContextLimitsInput): number | undefined {
   const raw = NATIVE_OPENAI_CONTEXT_OVERRIDES[slug]?.contextWindow
-    ?? (typeof PINNED_NATIVE_CAPABILITY_ENTRIES.get(slug)?.context_window === "number"
-      ? PINNED_NATIVE_CAPABILITY_ENTRIES.get(slug)!.context_window as number
+    ?? (typeof nativeCapabilityEntry(slug)?.context_window === "number"
+      ? nativeCapabilityEntry(slug)!.context_window as number
       : undefined);
   return narrowToLimits(raw, slug, limits);
 }
 
 export function nativeOpenAiMaxOutputTokens(slug: string): number | undefined {
   const sourceSlug = nativeOpenAiCapabilitySourceSlug(slug);
-  return positiveInt(getModelMetadata("openai", sourceSlug)?.maxTokens);
+  return positiveInt(nativeCapabilityEntry(slug)?.max_output_tokens)
+    ?? positiveInt(getModelMetadata("openai", sourceSlug)?.maxTokens);
 }
 
 /**
@@ -352,8 +369,9 @@ export function nativeOpenAiContextTier(
   limits?: NativeContextLimitsInput,
 ): { defaultWindow: number; longWindow: number } | undefined {
   const override = NATIVE_OPENAI_CONTEXT_OVERRIDES[slug];
-  const defaultWindow = positiveInt(override?.contextWindow);
-  const longWindow = positiveInt(override?.maxContextWindow);
+  const native = nativeCapabilityEntry(slug);
+  const defaultWindow = positiveInt(override?.contextWindow ?? native?.context_window);
+  const longWindow = positiveInt(override?.maxContextWindow ?? native?.max_context_window);
   if (defaultWindow === undefined || longWindow === undefined || longWindow <= defaultWindow) return undefined;
   const resolved = asLimits(limits);
   const levers = [
@@ -396,7 +414,7 @@ export function nativeOpenAiAutoCompactTokenLimit(
 }
 
 export function nativeInputModalities(slug: string): string[] {
-  const upstream = PINNED_NATIVE_CAPABILITY_ENTRIES.get(slug);
+  const upstream = nativeCapabilityEntry(slug);
   if (Array.isArray(upstream?.input_modalities) && upstream!.input_modalities!.length > 0) {
     return [...upstream!.input_modalities as string[]];
   }
@@ -405,7 +423,7 @@ export function nativeInputModalities(slug: string): string[] {
 }
 
 export function nativeReasoningEfforts(slug: string): string[] {
-  const upstream = PINNED_NATIVE_CAPABILITY_ENTRIES.get(slug);
+  const upstream = nativeCapabilityEntry(slug);
   const levels = Array.isArray(upstream?.supported_reasoning_levels)
     ? upstream!.supported_reasoning_levels as Array<{ effort?: string }>
     : [];
@@ -420,18 +438,18 @@ export function nativeReasoningEfforts(slug: string): string[] {
 
 /** Upstream-pinned default for a native slug, when present and non-empty. */
 export function nativeDefaultReasoningEffort(slug: string): string | undefined {
-  const level = PINNED_NATIVE_CAPABILITY_ENTRIES.get(slug)?.default_reasoning_level;
+  const level = nativeCapabilityEntry(slug)?.default_reasoning_level;
   return typeof level === "string" && level.length > 0 ? level : undefined;
 }
 
 /** Upstream-pinned multi-agent surface for a supported native slug, when present. */
 export function nativeMultiAgentVersion(slug: string): string | undefined {
-  const version = PINNED_NATIVE_CAPABILITY_ENTRIES.get(slug)?.multi_agent_version;
+  const version = nativeCapabilityEntry(slug)?.multi_agent_version;
   return typeof version === "string" && version.length > 0 ? version : undefined;
 }
 
 export function nativeParallelToolCalls(slug: string): boolean {
-  return PINNED_NATIVE_CAPABILITY_ENTRIES.get(slug)?.supports_parallel_tool_calls === true
+  return nativeCapabilityEntry(slug)?.supports_parallel_tool_calls === true
     || false;
 }
 
@@ -544,7 +562,8 @@ export function applyNativeVisibility(
     const nativeSlug = accountBoundSlug ?? slug;
     if (!nativeSlug
       || (!accountBoundSlug && slug.includes("/"))
-      || (!SUPPORTED_NATIVE_OPENAI_SLUGS.has(nativeSlug) && !observedNativeSlugs.has(nativeSlug))) continue;
+      || (!SUPPORTED_NATIVE_OPENAI_SLUGS.has(nativeSlug) && !observedNativeSlugs.has(nativeSlug)
+        && entry[AUTHENTICATED_NATIVE_ROW_FIELD] !== true)) continue;
     const disabled = disabledModels.has(nativeSlug)
       || (accountBoundSlug !== undefined && disabledModels.has(slug));
     entry.visibility = disabled || (!accountBoundSlug && hideBareNative)
@@ -623,7 +642,7 @@ export const UPSTREAM_NATIVE_ENTRIES: Map<string, RawEntry> = new Map(
 );
 
 export function upstreamNativeEntry(slug: string): RawEntry | null {
-  const entry = UPSTREAM_NATIVE_ENTRIES.get(slug);
+  const entry = UPSTREAM_NATIVE_ENTRIES.get(slug) ?? authenticatedNativeCatalogEntry(slug);
   if (!entry) return null;
   const clone = JSON.parse(JSON.stringify(entry)) as RawEntry;
   delete clone.minimal_client_version;
@@ -640,7 +659,7 @@ export function upstreamNativeEntry(slug: string): RawEntry | null {
 export function nativeOpenAiCapabilityDisplayName(slug: string): string | undefined {
   const presentation = nativeOpenAiAliasPresentation(slug);
   if (presentation) return presentation.displayName;
-  const pinned = UPSTREAM_NATIVE_ENTRIES.get(slug);
+  const pinned = UPSTREAM_NATIVE_ENTRIES.get(slug) ?? authenticatedNativeCatalogEntry(slug);
   return typeof pinned?.display_name === "string" ? pinned.display_name : undefined;
 }
 
@@ -864,7 +883,15 @@ export function observedAccountBoundNativeOpenAiSlugs(
 
 function catalogNativeSlugs(): string[] {
   const cat = readCurrentCatalogOrCache();
-  const models = cat?.models ?? [];
+  // The default path intentionally prefers bundled static rows, but that snapshot cannot know
+  // a model released after this OpenCodex build. Extend it only with authenticated live rows.
+  const models = [
+    ...(cat?.models ?? []),
+    ...(readCurrentCodexCatalog()?.models ?? []).filter(entry =>
+      typeof entry.slug === "string" && !entry.slug.includes("/")
+      && entry[AUTHENTICATED_NATIVE_ROW_FIELD] === true
+      && hasNativeCatalogRowShape(withDerivedBaseInstructions(entry))),
+  ];
   const live = models.flatMap(entry => {
     const slug = typeof entry.slug === "string" ? entry.slug : "";
     return !slug.includes("/") && !RETIRED_NATIVE_OPENAI_MODELS.has(slug)

@@ -10,9 +10,11 @@
  * https://openai.com/index/introducing-gpt-6-sol-and-luna/ (announced 2026-09-22).
  */
 import { afterEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   buildCatalogEntries,
+  applyNativeVisibility,
   NATIVE_OPENAI_MODELS,
   nativeDefaultReasoningEffort,
   nativeInputModalities,
@@ -20,6 +22,7 @@ import {
   nativeOpenAiContextTier,
   nativeOpenAiContextWindow,
   nativeReasoningEfforts,
+  nativeOpenAiSlugs,
   upstreamNativeEntry,
 } from "../../src/codex/catalog";
 import {
@@ -39,6 +42,7 @@ import { DOCUMENTED_NATIVE_OPENAI_ADDITIONS, nativeOpenAiCapabilityDisplayName }
 import { pinnedNativeModelRows } from "../../src/codex/catalog/pinned-models";
 import { resetCodexModelEntitlementCacheForTests } from "../../src/codex/model-entitlements";
 import { repoPath } from "../helpers/repo-root";
+import { installIsolatedCodexHome } from "../helpers/isolated-codex-home";
 import { authenticatedNativeRows, mergeAuthenticatedNativeRows, AUTHENTICATED_NATIVE_ROW_FIELD } from "../../src/codex/catalog/live-native";
 import { hasAuthenticatedNativeCatalogDrift } from "../../src/codex/native-roster-auto-sync";
 import type { CodexModelEntitlementSnapshot } from "../../src/codex/model-entitlements";
@@ -246,5 +250,35 @@ describe("authenticated native roster follows future releases", () => {
   test("rejects malformed native metadata rather than synthesizing capabilities", () => {
     const malformed = { ...source, context_window: 0 };
     expect(authenticatedNativeRows(snapshot(true, [malformed])).has(slug)).toBe(false);
+  });
+
+  test("the default bundled catalog still publishes a newer verified disk row with exact capabilities", () => {
+    const home = installIsolatedCodexHome("ocx-future-native-publication-");
+    try {
+      // This file is the same surface the live sync writes; no model ID enters a static list.
+      const exact = {
+        ...source,
+        supported_reasoning_levels: [
+          { effort: "low", description: "Low" },
+          { effort: "medium", description: "Medium" },
+          { effort: "high", description: "High" },
+        ],
+        default_reasoning_level: "high",
+        [AUTHENTICATED_NATIVE_ROW_FIELD]: true,
+      };
+      writeFileSync(join(home.path, "opencodex-catalog.json"), JSON.stringify({ models: [exact] }), "utf8");
+      expect(nativeOpenAiSlugs()).toContain(slug);
+      expect(nativeReasoningEfforts(slug)).toEqual(["low", "medium", "high"]);
+      expect(nativeDefaultReasoningEffort(slug)).toBe("high");
+      expect(nativeOpenAiContextWindow(slug)).toBe(272_000);
+      expect(nativeOpenAiContextTier(slug)).toEqual({ defaultWindow: 272_000, longWindow: 872_000 });
+      const rows = buildCatalogEntries(nativeTemplate(), [slug], [], [], false, "default");
+      const row = rows.find(entry => entry.slug === slug);
+      expect(row?.display_name).toBe("GPT-6.1-Sol");
+      expect(efforts(row)).toEqual(["low", "medium", "high"]);
+      expect(applyNativeVisibility(rows, new Set([slug]))[0]?.visibility).toBe("hide");
+    } finally {
+      home.restore();
+    }
   });
 });

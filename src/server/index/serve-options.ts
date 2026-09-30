@@ -872,10 +872,10 @@ export function createServeOptions(ctx: ServeOptionsContext) {
           bareEligibleAccountIds,
         );
         const availableAccountGatedNativeSlugs = availableAccountGatedNativeModels(modelEntitlements);
-        const availableBareNativeSlugs = NATIVE_OPENAI_MODELS.filter(slug => (
+        const availableBareNativeSlugs = nativeOpenAiSlugs().filter(slug => (
           !ACCOUNT_GATED_NATIVE_OPENAI_MODELS.has(slug) || availableBareGatedNativeSlugs.has(slug)
         ));
-        const availableAccountNativeSlugs = NATIVE_OPENAI_MODELS.filter(slug => (
+        const availableAccountNativeSlugs = nativeOpenAiSlugs().filter(slug => (
           !ACCOUNT_GATED_NATIVE_OPENAI_MODELS.has(slug) || availableAccountGatedNativeSlugs.has(slug)
         ));
         const nativeSlugs = includeNativeOpenAi

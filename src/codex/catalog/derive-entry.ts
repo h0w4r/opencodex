@@ -18,6 +18,7 @@ import {
   upstreamNativeEntry,
   type NativeContextLimitsInput,
 } from "./metadata";
+import { AUTHENTICATED_NATIVE_ROW_FIELD } from "./live-native";
 import {
   applyCatalogModelMetadata,
   applyReasoningLevels,
@@ -33,7 +34,8 @@ export function finishUpstreamNativeEntry(clone: RawEntry, priority: number, con
   // GPT-5.6 natives keep their exact upstream ladders (e.g. luna has max but no ultra).
   // Older natives (gpt-5.5) get mock max + ultra
   // (wire-clamped to xhigh). Ultra is always advertised regardless of v2 toggle.
-  if (!isGpt56NativeSlug(String(clone.slug ?? ""))) ensureUltraReasoningLevel(clone);
+  if (!isGpt56NativeSlug(String(clone.slug ?? ""))
+    && clone[AUTHENTICATED_NATIVE_ROW_FIELD] !== true) ensureUltraReasoningLevel(clone);
   return ensureStrictCatalogFields(normalizeServiceTiers(clone));
 }
 

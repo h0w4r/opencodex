@@ -37,6 +37,7 @@ import { pinnedNativeModelRows } from "./pinned-models";
 import type { RawEntry } from "./parsing";
 import { readCurrentCatalogOrCache, readCurrentCodexCatalog, readCurrentCodexModelsCache, unique } from "./bundled";
 import { trustedAccountBoundNativeCatalogSlug, visibleCodexAccountSelectors } from "./account-models";
+import { AUTHENTICATED_NATIVE_ROW_FIELD } from "./live-native";
 import { CODEX_NATIVE_ALIAS_CATALOG_KIND } from "./kinds";
 import { RESERVE_METADATA_SOURCE_FIELD } from "./reserve";
 import {
@@ -514,7 +515,7 @@ export function nativeModelRows(config: Pick<OcxConfig, "disabledModels" | "comb
     config.providers?.[OPENAI_CODEX_PROVIDER_ID],
   ) === "direct" ? new Set([MAIN_CODEX_ACCOUNT_ID]) : undefined;
   const availableGated = cachedAvailableAccountGatedNativeModels(Date.now(), bareEligibleAccountIds);
-  return NATIVE_OPENAI_MODELS
+  return nativeOpenAiSlugs()
     .filter(slug => !ACCOUNT_GATED_NATIVE_OPENAI_MODELS.has(slug) || availableGated.has(slug))
     .filter(slug => !shadowed.has(slug)).map(slug => {
     const contextWindow = nativeOpenAiContextWindow(slug, limits);
@@ -866,7 +867,9 @@ function catalogNativeSlugs(): string[] {
   const models = cat?.models ?? [];
   const live = models.flatMap(entry => {
     const slug = typeof entry.slug === "string" ? entry.slug : "";
-    return !slug.includes("/") && SUPPORTED_NATIVE_OPENAI_SLUGS.has(slug) ? [slug] : [];
+    return !slug.includes("/") && !RETIRED_NATIVE_OPENAI_MODELS.has(slug)
+      && (SUPPORTED_NATIVE_OPENAI_SLUGS.has(slug) || entry[AUTHENTICATED_NATIVE_ROW_FIELD] === true)
+      ? [slug] : [];
   });
   const accountBound = models.flatMap(entry => {
     const slug = trustedAccountBoundNativeCatalogSlug(entry);

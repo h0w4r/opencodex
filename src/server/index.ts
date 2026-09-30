@@ -32,6 +32,7 @@ import { withCatalogWriteSerialization } from "../codex/catalog-write-serializat
 import { invalidateCodexModelsCacheWithPermit } from "../codex/catalog/sync";
 import { currentServiceHomes, serviceStatePathsForOpenCodexHome } from "../service";
 import { shouldSyncCodexOnStart } from "../codex/desired-state";
+import { startNativeRosterAutoSync } from "../codex/native-roster-auto-sync";
 import { effectiveLoopbackListenerPort } from "../codex/loopback-target";
 import {
   createWindowsTaskListingCache,
@@ -641,6 +642,7 @@ function startServerWithSpendLedgerOwner(port: number | undefined, deps: StartSe
   let unregisterQuotaAutoRefresh: (() => void) | null = null;
   let remoteWorkspaceStopping = false;
   let remoteWorkspaceShutdown: (() => Promise<void>) | undefined;
+  let nativeRosterAutoSync: { stop(): void } | null = null;
   const managementApiDeps: ManagementApiDeps = {
     ...deps.managementApi,
     remoteWorkspaceStopping: () => remoteWorkspaceStopping,
@@ -749,6 +751,11 @@ function startServerWithSpendLedgerOwner(port: number | undefined, deps: StartSe
   }
 
   bindNativeMainStartupLifecycle(server, nativeMainLifecycle);
+  // Keep the static Codex Desktop catalog aligned with authenticated native launches while
+  // this listener runs; the worker checks for drift before asking for a full provider sync.
+  if (shouldSyncCodexOnStart(config)) {
+    nativeRosterAutoSync = startNativeRosterAutoSync();
+  }
   const nativeStop = server.stop.bind(server);
   const loopbackListenerRef = loopbackServer;
   const managementIngressRef = managementIngressServer;
@@ -756,6 +763,7 @@ function startServerWithSpendLedgerOwner(port: number | undefined, deps: StartSe
     configurable: true,
     value: async (closeActiveConnections?: boolean): Promise<void> => {
       remoteWorkspaceStopping = true;
+      nativeRosterAutoSync?.stop();
       liveCallBindings.clear();
       // The orchestration lives in `runListenerShutdown` so its two competing properties —
       // cleanup completes, failure propagates — are testable without a live socket.

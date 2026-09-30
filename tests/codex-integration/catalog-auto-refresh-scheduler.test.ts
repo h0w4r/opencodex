@@ -6,6 +6,7 @@ import {
   catalogAutoRefreshIntervalForTests,
   catalogAutoRefreshTickCountForTests,
   isCatalogAutoRefreshRunning,
+  refreshCatalogAfterClientEvent,
   resetCatalogAutoRefreshForTests,
   runCatalogAutoRefreshTickForTests,
   startCatalogAutoRefresh,
@@ -97,6 +98,12 @@ afterEach(async () => {
 });
 
 describe("catalog auto-refresh scheduler", () => {
+  test("Codex launch or update forces the existing catalog-only convergence path", async () => {
+    writeCatalogAutoRefreshConfig();
+    await refreshCatalogAfterClientEvent();
+    expect(convergeFactoryCalls).toBe(1);
+    expect(catalogAutoRefreshTickCountForTests()).toBe(1);
+  });
   test("start is idempotent, clamps below the floor, unrefs the timer, and stop clears the cadence", () => {
     // A live 15-minute interval would keep a test process alive if it were ref'd, which is
     // the whole reason start unrefs. Spying setInterval is how the sweeper and update-job
@@ -245,5 +252,33 @@ describe("catalog auto-refresh scheduler", () => {
     await first;
     expect(convergeFactoryCalls).toBe(1);
     expect(catalogAutoRefreshTickCountForTests()).toBe(1);
+  });
+
+  test("a client launch queues a forced refresh behind an in-flight periodic tick", async () => {
+    writeCatalogAutoRefreshConfig({ enabled: true, intervalMinutes: 60 });
+    let releaseFirst!: (outcome: CatalogOnlyOutcome) => void;
+    const firstOutcome = new Promise<CatalogOnlyOutcome>(resolve => { releaseFirst = resolve; });
+    let firstEntered!: () => void;
+    let secondEntered!: () => void;
+    const firstStarted = new Promise<void>(resolve => { firstEntered = resolve; });
+    const secondStarted = new Promise<void>(resolve => { secondEntered = resolve; });
+    let call = 0;
+    convergeImpl = () => {
+      call += 1;
+      if (call === 1) { firstEntered(); return firstOutcome; }
+      secondEntered();
+      return Promise.resolve(COMMITTED_CATALOG_ONLY);
+    };
+
+    const periodic = runCatalogAutoRefreshTickForTests();
+    pendingTick = periodic;
+    await firstStarted;
+    await refreshCatalogAfterClientEvent();
+    expect(convergeFactoryCalls).toBe(1);
+    releaseFirst(COMMITTED_CATALOG_ONLY);
+    await periodic;
+    await secondStarted;
+    expect(convergeFactoryCalls).toBe(2);
+    expect(catalogAutoRefreshTickCountForTests()).toBe(2);
   });
 });

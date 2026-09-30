@@ -78,6 +78,7 @@ import {
   orderForSubagents,
 } from "./build-entries";
 import { finishUpstreamNativeEntry } from "./derive-entry";
+import { mergeAuthenticatedNativeRows } from "./live-native";
 import { finalizeAutoReviewModelOverride } from "./auto-review";
 import { gatedNativeAccountLabel, gatedNativeReauthSuppressionReason, warnGatedNativeSuppressedOnce } from "./gated-native-warn";
 import { reserveCatalogSuppressionReason, warnReserveSuppressedOnce } from "./reserve-warn";
@@ -277,11 +278,19 @@ function writeRetainedCatalogSync({
   modelEntitlements,
 }: RetainedCatalogSyncWrite): RetainedCatalogSyncResult {
   const { catalogPath, catalog, onDiskCatalog } = read;
-  const catalogModelsForMerge = catalogModelsForMergeWithNativeRecovery(
+  const recoveredCatalogModels = catalogModelsForMergeWithNativeRecovery(
     catalogPath,
     catalog,
     onDiskCatalog,
   );
+  // The authenticated roster is authoritative for newly launched native models and their
+  // actual capabilities. Retain its previous rows only while discovery is unconfirmed.
+  const verifiedNative = mergeAuthenticatedNativeRows(
+    recoveredCatalogModels, modelEntitlements,
+    providerCodexAccountMode(OPENAI_CODEX_PROVIDER_ID, config.providers[OPENAI_CODEX_PROVIDER_ID]) === "direct"
+      ? new Set([MAIN_CODEX_ACCOUNT_ID]) : undefined,
+  );
+  const catalogModelsForMerge = verifiedNative.rows;
   // Strict selector for template inheritance; the validity gate above keeps the broad one.
   const template = findSupportedNativeTemplate(catalog);
 
@@ -520,7 +529,7 @@ function writeRetainedCatalogSync({
     nativeMultiAgentDefaults: nativePinBaseline,
     policy: {
       ...CANONICAL_NATIVE_CATALOG_CONTENT_POLICY,
-      nativeBackfillSlugs: [...availableBareNativeSlugs, ...observedNativeSlugs],
+      nativeBackfillSlugs: [...availableBareNativeSlugs, ...observedNativeSlugs, ...verifiedNative.slugs],
       warningPolicy: "emit",
     },
   });

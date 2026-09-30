@@ -84,6 +84,7 @@ import { resolveAdmittedCodexModelEntitlements } from "./model-entitlement-admis
 import { ACCOUNT_GATED_NATIVE_OPENAI_MODELS } from "./catalog/native-models";
 import { providerCodexAccountMode } from "../providers/registry";
 import { OPENAI_CODEX_PROVIDER_ID } from "../providers/openai-tiers";
+import { mergeAuthenticatedNativeRows } from "./catalog/live-native";
 import { withCatalogWriteSerialization } from "./catalog-write-serialization";
 import {
   publishHashedCodexCatalogBackup,
@@ -302,11 +303,14 @@ function prepareCatalog(
   const observedNativeSlugs: string[] = [];
   const disabledNative = disabledNativeSlugs(config);
   const openaiContextCap = nativeContextLimits(config);
-  const nativeCatalogModels = mergeCatalogModelsWithNativeRecovery(
+  const recoveredCatalogModels = mergeCatalogModelsWithNativeRecovery(
     active?.models ?? catalog.models ?? [],
     [catalog.models ?? [], ...nativeRecoverySources],
   );
-  const catalogModels = nativeCatalogModels;
+  const verifiedNative = mergeAuthenticatedNativeRows(
+    recoveredCatalogModels, modelEntitlements, bareEligibleAccountIds,
+  );
+  const catalogModels = verifiedNative.rows;
   const suppressedSyntheticMaxSlugs = suppressedSyntheticMaxCatalogSlugs(config, ordered, catalogModels);
   const routedEntries = buildCatalogEntriesFromObservedState({
     template: template ? JSON.parse(JSON.stringify(template)) : null,
@@ -380,7 +384,7 @@ function prepareCatalog(
     nativeMultiAgentDefaults: nativeMultiAgentDefaults(baselineCatalogModels),
     policy: {
       ...CANONICAL_NATIVE_CATALOG_CONTENT_POLICY,
-      nativeBackfillSlugs: [...availableBareNativeSlugs, ...observedNativeSlugs],
+      nativeBackfillSlugs: [...availableBareNativeSlugs, ...observedNativeSlugs, ...verifiedNative.slugs],
       warningPolicy: "suppress",
     },
   });

@@ -46,6 +46,7 @@ import { NATIVE_RESERVE_MODEL } from "./native-models";
 import { isReserveCatalogProjection, type ReserveCatalogProjection } from "./reserve";
 import { deriveEntry, finishUpstreamNativeEntry, isExactComboCatalogEntry } from "./derive-entry";
 import { PICKER_ORDER_PRIORITY_BASE, SPAWN_PRIORITY_FIELD } from "./subagent-roster";
+import { AUTHENTICATED_NATIVE_ROW_FIELD } from "./live-native";
 
 export interface ObservedCatalogEntryBuildInput {
   readonly template: RawEntry | null;
@@ -382,7 +383,7 @@ function isOcxAuthoredRoutedEntry(entry: RawEntry): boolean {
 
 function recoverableNativeSlug(entry: RawEntry): string | null {
   const slug = typeof entry.slug === "string" ? entry.slug : "";
-  return SUPPORTED_NATIVE_OPENAI_SLUGS.has(slug)
+  return (SUPPORTED_NATIVE_OPENAI_SLUGS.has(slug) || entry[AUTHENTICATED_NATIVE_ROW_FIELD] === true)
     && !isNativeAliasCatalogEntry(entry)
     && entry.owned_by !== COMBO_NAMESPACE
     ? slug
@@ -685,7 +686,8 @@ export function mergeCatalogEntriesFromObservedState({
       delete preserved[SPAWN_PRIORITY_FIELD];
       // Older natives kept from disk still need the mock top tiers (max + ultra always
       // for subagent max spawns; wire-clamped to the model's real top rung).
-      if (!isGpt56NativeSlug(slug) && slug !== NATIVE_RESERVE_MODEL) ensureUltraReasoningLevel(preserved);
+      if (!isGpt56NativeSlug(slug) && slug !== NATIVE_RESERVE_MODEL
+        && preserved[AUTHENTICATED_NATIVE_ROW_FIELD] !== true) ensureUltraReasoningLevel(preserved);
       return preserved;
     })
     : [];

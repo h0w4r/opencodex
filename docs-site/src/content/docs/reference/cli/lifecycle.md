@@ -300,6 +300,14 @@ not fabricate official-client metadata. Doctor never mutates credentials or appl
 
 ## Catalog sync
 
+OpenCodex consulta el catálogo nativo autenticado de Codex y conserva los metadatos reales de
+modelos nuevos (contexto, modalidades y niveles de razonamiento). Con la integración de Codex
+habilitada, también reconcilia el catálogo al detectar una nueva instancia `app-server`, una
+actualización del runtime de Codex Desktop y, como respaldo, una discrepancia observada en el
+catálogo nativo. Estos eventos ejecutan la convergencia existente de todos los proveedores.
+Un `app-server` que ya cargó el catálogo anterior en memoria puede requerir reiniciar Codex
+Desktop para mostrarlo; OpenCodex no interrumpe conversaciones automáticamente.
+
 ### `ocx sync [--restart-codex] [--restart-app-server-only]`
 
 Fetch the live model list from every configured provider and re-inject the merged catalog into Codex.

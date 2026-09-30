@@ -44,6 +44,17 @@ provider-wide fallback. Exact model output limits precede the provider default o
 
 `src/codex/catalog.ts` builds a shared Codex-shaped catalog for CLI, TUI, App, and SDK. It:
 
+- incorporates full, authenticated native rows from
+  `src/codex/model-entitlements.ts` through `src/codex/catalog/live-native.ts`. A newly released
+  `gpt-*` or `codex-*` row is admitted only with a visible, API-supported roster record and its
+  exact context, modalities and reasoning ladder. Confirmed withdrawal removes a previously
+  verified row; an unconfirmed roster outage retains the last verified row. This is independent
+  of the pinned release list, which remains the offline fallback;
+- reconciles native roster drift every minute through `src/codex/native-roster-auto-sync.ts` and
+  invokes the existing catalog-only convergence funnel on Codex app-server launch or a versioned
+  Codex Desktop runtime-directory update. The process-name prefilter is cheap; ownership and
+  command-line verification run only on new process ids. A failed watcher leaves polling active;
+
 - preserves native OpenAI entries from the live catalog or static fallback, and emits
   gpt-5.6 natives from the pinned upstream models.json snapshot
   (`src/codex/data/upstream-models.json` — exact per-slug ladders: luna has no ultra);

@@ -39,6 +39,10 @@ import { DOCUMENTED_NATIVE_OPENAI_ADDITIONS, nativeOpenAiCapabilityDisplayName }
 import { pinnedNativeModelRows } from "../../src/codex/catalog/pinned-models";
 import { resetCodexModelEntitlementCacheForTests } from "../../src/codex/model-entitlements";
 import { repoPath } from "../helpers/repo-root";
+import { authenticatedNativeRows, mergeAuthenticatedNativeRows, AUTHENTICATED_NATIVE_ROW_FIELD } from "../../src/codex/catalog/live-native";
+import { hasAuthenticatedNativeCatalogDrift } from "../../src/codex/native-roster-auto-sync";
+import type { CodexModelEntitlementSnapshot } from "../../src/codex/model-entitlements";
+import type { RawEntry } from "../../src/codex/catalog/parsing";
 
 afterEach(() => resetCodexModelEntitlementCacheForTests());
 
@@ -197,5 +201,50 @@ describe("roster-pinned-models.json", () => {
     for (const row of merged.slice(upstream.length)) {
       expect(upstreamSlugs.has(row.slug)).toBe(false);
     }
+  });
+});
+
+describe("authenticated native roster follows future releases", () => {
+  const slug = "gpt-6.1-sol";
+  const source = {
+    ...JSON.parse(JSON.stringify(upstreamNativeEntry(NATIVE_GPT6_SOL_MODEL))) as RawEntry,
+    slug,
+    display_name: "GPT-6.1-Sol",
+    comp_hash: "future-release-test",
+  };
+  function snapshot(confirmed: boolean, rows: RawEntry[]): CodexModelEntitlementSnapshot {
+    return {
+      modelsByAccount: new Map([["__main__", new Set(rows.map(row => String(row.slug)))]]),
+      modelRowsByAccount: new Map([["__main__", new Map(rows.map(row => [String(row.slug), row]))]]),
+      clientVersionByAccount: new Map([["__main__", "0.159.0"]]),
+      confirmedAccountIds: confirmed ? new Set(["__main__"]) : new Set(),
+      credentialIdentities: new Map([["__main__", "test-main"]]),
+    };
+  }
+
+  test("publishes exact authenticated metadata without adding a static native id", () => {
+    const observed = authenticatedNativeRows(snapshot(true, [source]));
+    const row = observed.get(slug)!;
+    expect(row.display_name).toBe("GPT-6.1-Sol");
+    expect(row.supported_reasoning_levels).toEqual(source.supported_reasoning_levels);
+    expect(row[AUTHENTICATED_NATIVE_ROW_FIELD]).toBe(true);
+    expect(NATIVE_OPENAI_MODELS).not.toContain(slug);
+    expect(hasAuthenticatedNativeCatalogDrift(observed, [], true)).toBe(true);
+    const merged = mergeAuthenticatedNativeRows([], snapshot(true, [source]));
+    expect(merged.slugs).toEqual([slug]);
+    expect(hasAuthenticatedNativeCatalogDrift(observed, merged.rows, true)).toBe(false);
+  });
+
+  test("keeps verified rows during outages and removes them on confirmed withdrawal", () => {
+    const existing = mergeAuthenticatedNativeRows([], snapshot(true, [source])).rows;
+    expect(mergeAuthenticatedNativeRows(existing, snapshot(false, [])).slugs).toEqual([slug]);
+    expect(mergeAuthenticatedNativeRows(existing, snapshot(true, [])).slugs).toEqual([]);
+    expect(hasAuthenticatedNativeCatalogDrift(new Map(), existing, false)).toBe(false);
+    expect(hasAuthenticatedNativeCatalogDrift(new Map(), existing, true)).toBe(true);
+  });
+
+  test("rejects malformed native metadata rather than synthesizing capabilities", () => {
+    const malformed = { ...source, context_window: 0 };
+    expect(authenticatedNativeRows(snapshot(true, [malformed])).has(slug)).toBe(false);
   });
 });

@@ -87,7 +87,7 @@ export function exportModelsFromProxyRows(
     if (entry.fastRowAvailable !== undefined) model.fastRowAvailable = entry.fastRowAvailable;
     if (entry.displayName) model.displayName = entry.displayName;
     if (entry.contextWindow !== undefined) model.contextWindow = entry.contextWindow;
-    if (entry.reasoningEfforts && entry.reasoningEfforts.length > 0) {
+    if (entry.reasoningEfforts !== undefined) {
       model.reasoningEfforts = [...entry.reasoningEfforts];
     }
     if (entry.defaultReasoningEffort) model.defaultReasoningEffort = entry.defaultReasoningEffort;

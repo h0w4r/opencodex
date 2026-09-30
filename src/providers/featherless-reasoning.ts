@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
-import type { OcxCustomModel, OcxProviderConfig } from "../types";
+import { type OcxConfig, type OcxCustomModel, type OcxProviderConfig } from "../types";
+import { isFeatherlessCatalogProvider } from "./featherless-catalog";
+import { slugEquals } from "./slug-codec";
 
 /** Contrato probado del selector de razonamiento que Codex puede representar. */
 export interface FeatherlessReasoningProfile {
-  kind: "toggle" | "budget" | "fixed-or-unknown";
+  kind: "toggle" | "budget" | "effort" | "fixed-or-unknown";
   /** Todos los controles necesarios respondieron; sólo entonces puede reemplazar evidencia previa. */
   complete: boolean;
   reasoningEfforts: string[];
@@ -18,6 +20,7 @@ export interface FeatherlessReasoningProfile {
     budgetLowHash?: string;
     budgetHighHash?: string;
     statuses: number[];
+    effortHashes?: Record<string, string>;
   };
 }
 
@@ -130,10 +133,36 @@ export async function probeFeatherlessReasoningProfile(
   const toggleWorks = disabled.prompt !== undefined
     && enabled.prompt !== undefined
     && disabled.prompt !== enabled.prompt;
+  // Algunos modelos siempre razonan y ofrecen niveles nominales en la plantilla,
+  // aunque no acepten enable_thinking. Una igualdad o un 200 aislado no los acredita.
+  const namedEfforts = ["low", "medium", "high", "xhigh", "max"];
+  const named = await Promise.all(namedEfforts.map(effort =>
+    renderTemplate(modelId, apiKey, { reasoning_effort: effort }, deps)));
+  const hashes: Record<string, string> = {};
+  const distinct = new Set<string>();
+  for (const [i, rendered] of named.entries()) {
+    if (rendered.prompt === undefined) continue;
+    const digest = hash(rendered.prompt)!;
+    if (distinct.has(digest)) continue;
+    distinct.add(digest);
+    hashes[namedEfforts[i]!] = digest;
+  }
+  const namedConclusive = named.every(result => [200, 400, 422].includes(result.status));
+  if (distinct.size > 1 && namedConclusive) {
+    const efforts = [...(toggleWorks ? ["none"] : []), ...Object.keys(hashes)];
+    const defaultEffort = toggleWorks && omitted.prompt === disabled.prompt ? "none"
+      : efforts.find(effort => hashes[effort] === baseEvidence.omittedHash);
+    return {
+      kind: "effort", complete: omitted.prompt !== undefined,
+      reasoningEfforts: efforts, ...(defaultEffort ? { defaultReasoningEffort: defaultEffort } : {}),
+      defaultEnabled: true, checkedAt,
+      evidence: { ...baseEvidence, effortHashes: hashes, statuses: [...baseEvidence.statuses, ...named.map(result => result.status)] },
+    };
+  }
   if (!toggleWorks) {
     return {
       kind: "fixed-or-unknown",
-      complete: [omitted, disabled, enabled].every(rendered => rendered.prompt !== undefined),
+      complete: namedConclusive && [omitted, disabled, enabled].every(rendered => rendered.prompt !== undefined),
       reasoningEfforts: [],
       defaultEnabled: omitted.prompt !== undefined && enabled.prompt !== undefined
         && omitted.prompt === enabled.prompt ? true
@@ -160,7 +189,7 @@ export async function probeFeatherlessReasoningProfile(
     kind: budgetWorks ? "budget" : "toggle",
     // La escala binaria está probada, pero no se afirma que sea exhaustiva si
     // alguno de los dos presupuestos no pudo contrastarse con el formatter.
-    complete: budgetLow.prompt !== undefined && budgetHigh.prompt !== undefined,
+    complete: namedConclusive && budgetLow.prompt !== undefined && budgetHigh.prompt !== undefined,
     reasoningEfforts: budgetWorks
       ? ["none", "low", "medium", "high", "xhigh", "max"]
       : ["none", "high"],
@@ -225,13 +254,16 @@ export function applyFeatherlessReasoningProfile(
   const supportsToggle = profile.kind === "toggle" || profile.kind === "budget";
   const wireMap: Record<string, string> | undefined = profile.kind === "toggle"
     ? { none: "disabled", high: "enabled" }
-    : profile.kind === "budget" ? { none: "disabled" } : undefined;
+    : profile.kind === "budget" ? { none: "disabled" }
+      : profile.kind === "effort" ? Object.fromEntries(profile.reasoningEfforts.map(effort => [effort, effort === "none" ? "disabled" : `template:${effort}`])) : undefined;
   provider.modelReasoningEffortMap = setRecord(provider.modelReasoningEffortMap, modelId, wireMap);
   provider.thinkingBudgetModels = setMembership(provider.thinkingBudgetModels, modelId, profile.kind === "budget");
   provider.preserveReasoningContentModels = setMembership(
     provider.preserveReasoningContentModels,
     modelId,
-    supportsToggle,
+    // La ausencia de controles seleccionables no significa ausencia de razonamiento.
+    // Conservar contenido realmente devuelto también cubre modelos always-on.
+    true,
   );
   // DeepSeek rechaza continuaciones de tool calls sin reasoning_content cuando thinking está
   // activo. El serializador evita este placeholder cuando el operador seleccionó `none`.
@@ -240,4 +272,35 @@ export function applyFeatherlessReasoningProfile(
     modelId,
     supportsToggle && isDeepSeekThinkingModel(modelId),
   );
+}
+
+// Caché sólo de controles comprobados, nunca de credenciales ni contenido de prompts.
+const profileCache = new Map<string, { expires: number; profile: FeatherlessReasoningProfile }>();
+
+/** Revalida selecciones activas sin inferencias ni explorar todo el catálogo remoto. */
+export async function refreshFeatherlessReasoningProfiles(config: OcxConfig): Promise<boolean> {
+  let changed = false;
+  for (const [providerName, provider] of Object.entries(config.providers)) {
+    if (!isFeatherlessCatalogProvider(provider)) continue;
+    const models = (config.customModels ?? []).filter(model => model.provider === providerName
+      && !(config.disabledModels ?? []).some(slug => slugEquals(slug, providerName, model.modelId)));
+    if (!models.length) continue;
+    const { resolveModelsAuthToken } = await import("../oauth");
+    const token = await resolveModelsAuthToken(providerName, provider);
+    if (!token) continue;
+    for (const model of models) {
+      const key = `${provider.baseUrl}:${providerName}:${model.modelId}`;
+      const cached = profileCache.get(key);
+      const profile = cached && cached.expires > Date.now() ? cached.profile
+        : await probeFeatherlessReasoningProfile(model.modelId, token);
+      // No extender la vigencia al leer: de otro modo nunca se revalidaría.
+      if (profile !== cached?.profile) profileCache.set(key, {
+        profile, expires: Date.now() + (profile.complete ? 6 * 60 * 60_000 : 15 * 60_000),
+      });
+      const before = JSON.stringify([provider, model]);
+      applyFeatherlessReasoningProfile(provider, model, profile);
+      changed ||= before !== JSON.stringify([provider, model]);
+    }
+  }
+  return changed;
 }

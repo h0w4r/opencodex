@@ -213,9 +213,13 @@ function clampToSupportedCodexEffort(requested: string, supported: readonly stri
   if (supported.includes(codex)) return codex;
 
   const requestedRank = CODEX_REASONING_ORDER.indexOf(codex);
-  let best = supported[0];
+  // none/minimal son sentinelas, no peldaños numéricos. Nunca apagar un modelo
+  // al ajustar una petición positiva, por ejemplo medium contra [none, high].
+  const positive = supported.filter(effort => CODEX_REASONING_SET.has(effort));
+  if (positive.length === 0) return undefined;
+  let best = positive[0];
   let bestRank = CODEX_REASONING_ORDER.indexOf(best);
-  for (const effort of supported) {
+  for (const effort of positive) {
     const rank = CODEX_REASONING_ORDER.indexOf(effort);
     if (rank <= requestedRank && rank >= bestRank) {
       best = effort;

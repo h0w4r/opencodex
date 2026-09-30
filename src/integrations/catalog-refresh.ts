@@ -1,6 +1,6 @@
 import { redactSecretString } from "../lib/redact";
 import type { ExportModel } from "../clients/config-export";
-import type { IntegrationClientId } from "./registry";
+import { INTEGRATION_CLIENT_IDS, type IntegrationClientId } from "./registry";
 import {
   refreshOwnedIntegration,
   type OwnedIntegrationRefreshInput,
@@ -10,7 +10,7 @@ import {
 /** Refresh only previously connected clients; a refused file never blocks its peers. */
 export async function refreshOwnedCatalogIntegrations(
   input: Omit<OwnedIntegrationRefreshInput, "clientId">,
-  clientIds: readonly IntegrationClientId[] = ["pi", "aside", "raycast", "omo"],
+  clientIds: readonly IntegrationClientId[] = INTEGRATION_CLIENT_IDS,
 ): Promise<OwnedIntegrationRefreshOutcome[]> {
   let models: Promise<readonly ExportModel[]> | undefined;
   const loadModels = () => models ??= Promise.resolve().then(() =>

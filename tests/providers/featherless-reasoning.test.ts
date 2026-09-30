@@ -81,7 +81,7 @@ describe("Featherless reasoning discovery", () => {
     });
     expect(profile.kind).toBe("toggle");
     expect(profile.complete).toBe(true);
-    expect(calls).toBe(6);
+    expect(calls).toBe(11);
   });
 
   test("projects an evidence-backed toggle onto catalog and transport without fake tiers", () => {
@@ -138,5 +138,36 @@ describe("Featherless reasoning discovery", () => {
     expect(custom.reasoningEfforts).toEqual(["none", "high"]);
     expect(provider.modelReasoningEfforts?.[modelId]).toEqual(["none", "high"]);
     expect(provider.modelReasoningEffortMap?.[modelId]).toEqual({ none: "disabled", high: "enabled" });
+  });
+});
+
+describe("Featherless nominal effort evidence", () => {
+  test("discovers template effort levels even when thinking cannot be switched off", async () => {
+    const profile = await probeFeatherlessReasoningProfile("example/always-on", "secret", {
+      fetch: (async (_input, init) => {
+        const kwargs = JSON.parse(String(init?.body)).chat_template_kwargs;
+        const effort = kwargs?.reasoning_effort;
+        if (effort && !["low", "medium", "high"].includes(effort)) return new Response(null, { status: 400 });
+        return responseForPrompt(`EFFORT-${effort ?? "medium"}`);
+      }) as typeof fetch,
+    });
+    expect(profile.kind).toBe("effort");
+    expect(profile.complete).toBe(true);
+    expect(profile.reasoningEfforts).toEqual(["low", "medium", "high"]);
+    expect(profile.defaultReasoningEffort).toBe("medium");
+    const provider: OcxProviderConfig = { adapter: "openai-chat", baseUrl: "https://api.featherless.ai/v1" };
+    const custom: OcxCustomModel = { id: "verified", provider: "featherless", modelId: "example/always-on" };
+    applyFeatherlessReasoningProfile(provider, custom, profile);
+    expect(provider.modelReasoningEffortMap?.[custom.modelId]?.low).toBe("template:low");
+  });
+  test("fixed-or-unknown controls do not discard actual reasoning replay", () => {
+    const provider: OcxProviderConfig = { adapter: "openai-chat", baseUrl: "https://api.featherless.ai/v1" };
+    const model: OcxCustomModel = { id: "fixed", provider: "featherless", modelId: "example/fixed" };
+    applyFeatherlessReasoningProfile(provider, model, {
+      kind: "fixed-or-unknown", complete: true, reasoningEfforts: [], defaultEnabled: null,
+      checkedAt: new Date().toISOString(), evidence: { source: "featherless-debug-chat-format", statuses: [200,200,200] },
+    });
+    expect(model.reasoningEfforts).toEqual([]);
+    expect(provider.preserveReasoningContentModels).toContain(model.modelId);
   });
 });

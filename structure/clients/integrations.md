@@ -348,3 +348,16 @@ complete ownership, exact Cline paths and result fingerprints before either nati
 Native pair writes replace the named directory entries without following final symlinks. A symlink
 present at validation is refused, and one exchanged into place during a mutation is refused rather
 than redirecting OpenCodex's write outside Cline's settings directory.
+
+### Escalas vacías explícitas
+
+`src/cli/opencode.ts` y `src/cli/export-command.ts` conservan `reasoningEfforts: []`
+durante la proyección compartida. El exportador OMP puede desactivar sus heurísticas
+de esfuerzo en vez de inventar una escala por nombre. La lista vacía describe
+controles seleccionables ausentes, no demuestra ausencia de razonamiento interno.
+
+La reconciliación por evento o periódica propaga capacidades tras el commit
+a clientes ya conectados mediante `INTEGRATION_CLIENT_IDS`, sin una lista parcial
+independiente que omita OMP. El registro incorpora automáticamente exportadores
+futuros. La escritura coordinada conserva el guard de ownership y rechaza ediciones
+ajenas; un fallo se informa sin habilitar silenciosamente un cliente.

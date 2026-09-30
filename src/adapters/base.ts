@@ -153,7 +153,7 @@ export interface AdapterRequest {
         }
       | {
           effectiveEffort: string;
-          wireField: "reasoning_effort" | "reasoning.effort" | "thinking.type";
+          wireField: "reasoning_effort" | "chat_template_kwargs.reasoning_effort" | "reasoning.effort" | "thinking.type";
           wireValue: string;
         };
     /**

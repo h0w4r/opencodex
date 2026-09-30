@@ -65,7 +65,10 @@ describe("ocx sync fans out to enabled native clients and owned file integration
 
     expect(fn).toContain("grokIntegrationEnabled(config)");
     expect(fn).toContain("claudeDesktopIntegrationEnabled(config)");
-    expect(fn).toContain('["mcode", "pi", "aside", "raycast", "omo", "cline"]');
+    const registryRefresh = await Bun.file(new URL("../../src/integrations/catalog-refresh.ts", import.meta.url)).text();
+    expect(registryRefresh).toContain("= INTEGRATION_CLIENT_IDS");
+    // OMP y clientes futuros dependen del registro canónico, no de otra lista parcial.
+    expect(fn).not.toContain("}, [");
     expect(fn).toContain("refreshOwnedCatalogIntegrations");
     // Native clients keep their catches; the owned catalog helper isolates file clients.
     expect(fn.match(/catch \(error\)/g)?.length).toBe(2);

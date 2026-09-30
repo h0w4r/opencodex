@@ -1160,3 +1160,13 @@ test("renamed CommandCode gathered effort tables reach DSH and ZCode exports", a
     isolated.restore();
   }
 });
+
+test("an explicit empty effort ladder survives the real proxy-to-client export pipeline", () => {
+  const rows = [{ provider: "featherless", id: "example/fixed", namespaced: "featherless/example-fixed", reasoningEfforts: [] }];
+  const config = cfg();
+  const exported = exportModelsFromProxyRows(rows, config);
+  expect(exported[0]?.reasoningEfforts).toEqual([]);
+  const generated = omp.buildOmpClientConfig(ctx({ models: exported, config }));
+  expect(generated.providers.opencodex?.models[0]?.reasoning).toBe(false);
+  expect(generated.providers.opencodex?.models[0]).not.toHaveProperty("thinking");
+});

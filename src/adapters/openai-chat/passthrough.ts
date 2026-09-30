@@ -8,7 +8,8 @@ import { fastPolicyForModel } from "../../providers/service-tier";
 import { canonicalFastTierMarker, decideTier, type ResolvedFastPolicy } from "../../providers/fastwire";
 import { debugProviderDiagnostic } from "../../lib/debug";
 import { isDebugEnabled } from "../../lib/debug-settings";
-import { modelRecordValue } from "../../reasoning-effort";
+import { mapReasoningEffort, modelRecordValue } from "../../reasoning-effort";
+import { isFeatherlessCatalogProvider } from "../../providers/featherless-catalog";
 import { modelInList, type OcxProviderConfig } from "../../types";
 import { chatParallelToolCallsWireValue } from "./parallel-tool-calls";
 import { applyExplicitChatReasoningWirePolicy } from "./reasoning-wire";
@@ -79,12 +80,18 @@ export function buildOpenAIChatPassthroughRequest(
   }
   const hasTools = Array.isArray(rawBody.tools) && rawBody.tools.length > 0;
   const requestedEffort = typeof body.reasoning_effort === "string" ? body.reasoning_effort : undefined;
-  applyExplicitChatReasoningWirePolicy({
+  const explicitReasoning = applyExplicitChatReasoningWirePolicy({
     provider,
     modelId,
     hasTools,
     requestedEffort,
-    wireEffort: requestedEffort,
+    // Otros upstreams conservan su passthrough histórico; Featherless usa
+    // el mismo contrato verificado que Responses/Claude, incluyendo none.
+    wireEffort: isFeatherlessCatalogProvider(provider)
+      ? mapReasoningEffort(provider, modelId, requestedEffort) : requestedEffort,
+    maxOutputTokens: typeof body.max_tokens === "number" ? body.max_tokens
+      : typeof body.max_completion_tokens === "number" ? body.max_completion_tokens
+        : modelRecordValue(provider.modelMaxOutputTokens, modelId) ?? provider.defaultMaxOutputTokens,
     reasoningDisabled,
     body,
   });
@@ -166,5 +173,5 @@ export function buildOpenAIChatPassthroughRequest(
     });
   }
 
-  return { url, method: "POST", headers, body: bodyJson };
+  return { url, method: "POST", headers, body: bodyJson, ...(explicitReasoning.handled && explicitReasoning.reasoningLog ? { reasoningLog: explicitReasoning.reasoningLog } : {}) };
 }

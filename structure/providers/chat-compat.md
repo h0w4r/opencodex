@@ -460,3 +460,15 @@ Canonical Responses identity sanitation and narrowly scoped pre-output combo rec
 Upstream API-key usage follows the [physical-attempt account attribution contract](../gui-and-management-api.md#upstream-key-account-attribution), independently of subscription quota observations.
 
 Unicode pattern normalization uses [copy-on-write traversal](../transports/byte-accounting.md#unicode-pattern-normalization) while preserving the existing schema and wire semantics.
+
+## Contrato de esfuerzo Featherless compartido
+
+`src/adapters/openai-chat/reasoning-wire.ts` compila los controles verificados de
+Featherless para ambos builders: Responses/Messages traducidos y Chat passthrough.
+Un toggle `none/high` significa apagado/encendido, no dos profundidades nominales.
+Los aliases internos se convierten en `chat_template_kwargs`, nunca en un
+`reasoning_effort` estándar. Los presupuestos comparten la misma proyección local.
+Los niveles nominales sólo se publican tras diferencias reales de plantilla y
+viajan mediante `chat_template_kwargs.reasoning_effort`. Los contratos de otros
+destinos y el passthrough OpenAI nativo permanecen intactos.
+Regresiones: `tests/adapters/openai/openai-chat-reasoning-wire-policy.test.ts`.

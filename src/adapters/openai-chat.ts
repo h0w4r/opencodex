@@ -1,6 +1,6 @@
 import { hasShrinkableOpenAIChatImages, normalizeOpenAIChatImages } from "./openai-chat-images";
 import { chatParallelToolCallsWireValue } from "./openai-chat/parallel-tool-calls";
-import { applyExplicitChatReasoningWirePolicy } from "./openai-chat/reasoning-wire";
+import { applyExplicitChatReasoningWirePolicy, chatThinkingBudgetForEffort } from "./openai-chat/reasoning-wire";
 import type { AdapterRequest, IncomingMeta, ProviderAdapter } from "./base";
 import type { AdapterEvent, OcxParsedRequest, OcxProviderConfig, OcxUsage } from "../types";
 import { modelInList } from "../types";
@@ -11,7 +11,6 @@ import { isDebugEnabled } from "../lib/debug-settings";
 import { openRouterProviderPayload, resolveOpenRouterRouting } from "../providers/openrouter-routing";
 import { resolveVercelGatewayRouting, vercelGatewayProviderPayload } from "../providers/vercel-gateway-routing";
 import { fastPolicyForModel } from "../providers/service-tier";
-import { isFeatherlessCatalogProvider } from "../providers/featherless-catalog";
 import { createAdapterTierMetadata, decideTier, type AdapterTierMetadata } from "../providers/fastwire";
 import {
   isTranslatorBudgetExceededError,
@@ -56,19 +55,6 @@ function resolveMaxTokens(provider: OcxProviderConfig, parsed: OcxParsedRequest)
     ?? provider.defaultMaxOutputTokens;
 }
 
-function thinkingBudgetForEffort(parsed: OcxParsedRequest, reasoningEffort: string, maxOutputTokens?: number): number | undefined {
-  if (parsed.options.reasoning === "minimal") return 0;
-  const maxBudget = maxOutputTokens ?? 32768;
-  const fractions: Record<string, number> = {
-    low: 0.20,
-    medium: 0.50,
-    high: 0.75,
-    xhigh: 0.90,
-    max: 1.0,
-  };
-  const fraction = fractions[reasoningEffort];
-  return fraction === undefined ? undefined : Math.max(1, Math.floor(maxBudget * fraction));
-}
 
 function canSerializeOpenAIChatServiceTier(
   provider: OcxProviderConfig,
@@ -153,38 +139,15 @@ export function createOpenAIChatAdapter(provider: OcxProviderConfig): ProviderAd
           requestedEffort: parsed.options.reasoning,
           wireEffort: reasoningEffort,
           reasoningDisabled,
+          maxOutputTokens: maxTokens,
           body,
         });
         let reasoningLog: AdapterRequest["reasoningLog"];
-        const featherlessTemplateReasoning = isFeatherlessCatalogProvider(provider)
-          && reasoningEffort !== undefined
-          && (reasoningEffort === "enabled"
-            || reasoningEffort === "disabled"
-            || modelInList(provider.thinkingBudgetModels, parsed.modelId));
         if (explicitReasoning.handled) {
           reasoningLog = explicitReasoning.reasoningLog;
-        } else if (!reasoningDisabled && featherlessTemplateReasoning) {
-          const enabled = reasoningEffort !== "disabled";
-          const templateKwargs: Record<string, unknown> = { enable_thinking: enabled };
-          if (enabled) {
-            // Featherless ignora kwargs desconocidos. Enviar ambos mecanismos de preservación
-            // cubre Qwen/Kimi y GLM sin falsificar niveles ni depender del nombre del fine-tune.
-            templateKwargs.preserve_thinking = true;
-            templateKwargs.clear_thinking = false;
-            if (modelInList(provider.thinkingBudgetModels, parsed.modelId)) {
-              const budget = thinkingBudgetForEffort(parsed, reasoningEffort!, maxTokens);
-              if (budget !== undefined) templateKwargs.thinking_budget = budget;
-            }
-          }
-          body.chat_template_kwargs = templateKwargs;
-          reasoningLog = {
-            effectiveEffort: parsed.options.reasoning ?? reasoningEffort!,
-            wireField: "chat_template_kwargs.enable_thinking",
-            wireValue: enabled,
-          };
         } else if (reasoningEffort !== undefined) {
           if (modelInList(provider.thinkingBudgetModels, parsed.modelId)) {
-            const budget = thinkingBudgetForEffort(parsed, reasoningEffort, maxTokens);
+            const budget = chatThinkingBudgetForEffort(parsed.options.reasoning, reasoningEffort, maxTokens);
             if (budget !== undefined) {
               body.thinking_budget = budget;
               reasoningLog = {

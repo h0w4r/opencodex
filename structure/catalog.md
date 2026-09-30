@@ -563,3 +563,8 @@ Dashboard Fast-row persistence and client refresh follow the [Fast selector rows
 
 Compaction routing selects its configured model at Responses ingress under the
 [compaction routing contract](transports/responses.md#compaction-routing-overrides). Catalog selection remains conversation-owned.
+
+La reconciliación automática revalida controles Featherless fuera del camino de
+inferencia antes de sellar el catálogo. Tras un commit con cambios, reutiliza el
+coordinador de integraciones ya habilitadas para propagar sus escalas a OMP y
+otros clientes registrados; no modifica clientes sin ownership previo.

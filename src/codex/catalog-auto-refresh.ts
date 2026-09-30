@@ -101,6 +101,16 @@ async function tick(force = false): Promise<void> {
     // A stop or restart landed while the funnel was loading: the result belongs to a
     // generation that no longer owns the timer, so it must not publish.
     if (entryGeneration !== generation) return;
+    // Refresco de capacidades fuera del camino de inferencia. Un fallo del formatter
+    // preserva las escalas verificadas; todos los clientes derivan el mismo catálogo.
+    const { refreshFeatherlessReasoningProfiles } = await import("../providers/featherless-reasoning");
+    const reasoningProfilesChanged = await refreshFeatherlessReasoningProfiles(config);
+    // Un probe remoto puede sobrevivir al stop: no publicar desde una generación retirada.
+    if (entryGeneration !== generation) return;
+    if (reasoningProfilesChanged) {
+      const { saveConfigPreservingClaudeCode } = await import("../config");
+      saveConfigPreservingClaudeCode(config);
+    }
     const converge = createManagementConvergeCodex(config);
     const outcome = await converge(createCatalogConvergeRequest({ deadlineMs: TICK_DEADLINE_MS }));
     if (entryGeneration !== generation) return;
@@ -109,6 +119,13 @@ async function tick(force = false): Promise<void> {
     if (outcome.kind !== "catalog-only") return;
     const { recordCatalogAutoRefreshOutcome } = await import("./catalog-refresh-status");
     recordCatalogAutoRefreshOutcome(outcome.catalogRefresh, outcome.changed);
+    // El registro canónico incluye OMP y futuros exportadores. Sólo actualiza
+    // bloques que el operador ya habilitó; nunca habilita ni reclama clientes.
+    if (outcome.catalogRefresh.status === "committed" && (outcome.changed || reasoningProfilesChanged)) {
+      const { syncEnabledClientIntegrations } = await import("../server/management/config-routes");
+      const results = await syncEnabledClientIntegrations(config.port, config);
+      if (results.some(result => !result.ok)) console.warn("[catalog-auto-refresh] an owned client integration could not refresh");
+    }
     if (outcome.changed) {
       // Privacy scan: no provider names, model ids, paths, or account identifiers.
       console.info("[catalog-auto-refresh] served model set changed");

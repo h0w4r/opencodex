@@ -1237,3 +1237,14 @@ by the other.
 ### Renamed API-key presets
 
 A provider saved under another name, such as `CommandCode`, inherits missing reasoning-effort metadata when its adapter and fixed API-key endpoint match a registry preset. Your explicit per-model lists, including `[]`, remain authoritative. An omitted provider-wide list inherits the preset default; an explicit list remains unchanged. This does not match OAuth, unrelated endpoints, or templated/custom endpoint presets.
+
+### Featherless: controles reales de razonamiento
+
+Los controles de Featherless dependen de cada plantilla, no de la escala de GPT.
+`none/high` representa un interruptor apagado/encendido cuando eso es lo único
+verificado. No significa que existan niveles bajo o medio ocultos. Un modelo
+sin controles seleccionables puede razonar siempre. OpenCodex conserva el
+contenido real de continuidad entre herramientas y no inventa niveles.
+Responses, Anthropic Messages y Chat Completions comparten la misma traducción
+de las capacidades verificadas. La reconciliación del catálogo revalida las
+selecciones activas y conserva las escalas previas si falla el formatter remoto.

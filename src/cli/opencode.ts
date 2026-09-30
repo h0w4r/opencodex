@@ -432,7 +432,7 @@ export function opencodeCatalogFromProxyRows(
         ? { inputModalities: [...row.inputModalities] }
         : {}),
       ...(typeof row.fastRowAvailable === "boolean" ? { fastRowAvailable: row.fastRowAvailable } : {}),
-      ...(Array.isArray(row.reasoningEfforts) && row.reasoningEfforts.length > 0
+      ...(Array.isArray(row.reasoningEfforts)
         ? { reasoningEfforts: [...row.reasoningEfforts] }
         : {}),
       ...(typeof row.defaultReasoningEffort === "string" && row.defaultReasoningEffort.length > 0

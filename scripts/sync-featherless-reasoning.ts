@@ -6,7 +6,7 @@
  *   bun scripts/sync-featherless-reasoning.ts          # diagnóstico sin escritura
  *   bun scripts/sync-featherless-reasoning.ts --apply  # guarda config.json de forma atómica
  */
-import { loadConfig, saveConfigPreservingClaudeCode } from "../src/config";
+import { armDetachedConfigBaseline, loadConfig, saveConfigPreservingClaudeCode } from "../src/config";
 import { resolveModelsAuthToken } from "../src/oauth";
 import { isFeatherlessCatalogProvider } from "../src/providers/featherless-catalog";
 import {
@@ -16,9 +16,12 @@ import {
 
 const apply = process.argv.includes("--apply");
 const config = loadConfig();
+// Conservar ediciones concurrentes durante las consultas remotas.
+armDetachedConfigBaseline(config);
 let inspected = 0;
 let toggles = 0;
 let budgets = 0;
+let namedEfforts = 0;
 let fixedOrUnknown = 0;
 let inconclusivePreserved = 0;
 
@@ -33,6 +36,7 @@ for (const [providerName, provider] of Object.entries(config.providers)) {
     if (!profile.complete) inconclusivePreserved++;
     else if (profile.kind === "toggle") toggles++;
     else if (profile.kind === "budget") budgets++;
+    else if (profile.kind === "effort") namedEfforts++;
     else fixedOrUnknown++;
     if (apply) applyFeatherlessReasoningProfile(provider, model, profile);
     console.log(
@@ -43,4 +47,4 @@ for (const [providerName, provider] of Object.entries(config.providers)) {
 }
 
 if (apply) saveConfigPreservingClaudeCode(config);
-console.log(JSON.stringify({ apply, inspected, toggles, budgets, fixedOrUnknown, inconclusivePreserved }));
+console.log(JSON.stringify({ apply, inspected, toggles, budgets, namedEfforts, fixedOrUnknown, inconclusivePreserved }));

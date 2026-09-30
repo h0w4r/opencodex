@@ -158,3 +158,13 @@ y el rechazo HTTP 422 de un modelo pequeño sin excepción. Una incompatibilidad
 de parche o de contrato conserva la versión activa y produce un informe local.
 El modelo de acreditación se puede elegir con FEATHERLESS_VERIFY_MODEL; no es una
 lista de modelos permitidos ni sustituye la política del catálogo.
+
+## Controles de razonamiento sincronizados
+
+`src/providers/featherless-reasoning.ts` distingue toggle, presupuesto, esfuerzo
+nominal y controles fijos/desconocidos. Un 200 que ignora una opción no acredita
+soporte. La ausencia de niveles seleccionables no elimina reasoning_content
+realmente devuelto por un modelo always-on. La reconciliación del catálogo
+revalida sólo selecciones activas; reutiliza evidencia seis horas sin extender
+su vigencia al leer, y conserva capacidades anteriores ante fallos transitorios.
+Las comprobaciones usan el formatter real, no consumen inferencias.

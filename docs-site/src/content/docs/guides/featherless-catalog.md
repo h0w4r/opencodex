@@ -29,8 +29,8 @@ Durante la activación puede haber una breve reconexión. El trabajo sigue ocult
 en segundo plano y su estado persiste al recargar la página. Nunca instala sin clic.
 
 Si una receta no es compatible, el panel informa del fallo y conserva los bundles;
-no se declara una actualización satisfactoria. **Comprobar instalación con el
-gestor** permite volver a ejecutar su decisión: si versión y receta ya coinciden,
+no se declara una actualización satisfactoria. **Ejecutar actualizador protegido**
+permite volver a ejecutar su decisión: si versión y receta ya coinciden,
 puede finalizar correctamente sin reinstalar. El diagnóstico detallado está en
 `ocx-catalog Status`. Este mecanismo se limita al bundle Windows registrado; no
 altera instalaciones independientes de Linux ni checkouts de desarrollo.

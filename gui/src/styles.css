@@ -2953,7 +2953,7 @@ button.prov-account-row.active { cursor: default; }
 .claude-effort-badge.off { background: color-mix(in srgb, var(--muted) 12%, transparent); color: var(--muted); }
 
 /* Estado gestionado: usa tokens existentes y no desborda en pantallas estrechas. */
-.managed-update { display: block; margin: var(--space-3) var(--space-4); flex-shrink: 0; }
+.notice.managed-update:not([hidden]) { display: block; max-width: none; margin: var(--space-3) var(--space-4); flex-shrink: 0; }
 .managed-update-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .managed-update summary { cursor: pointer; margin-top: var(--space-2); }
 .managed-update p { margin: var(--space-2) 0; overflow-wrap: anywhere; }

@@ -38,6 +38,9 @@ test("recupera un worker muerto pero nunca cancela uno vivo por antigüedad", ()
   expect(readManagedJob(ctx)?.status).toBe("running");
   writeFileSync(path, JSON.stringify({ ...job, pid: 2147483647 }));
   expect(readManagedJob(ctx)).toMatchObject({ status: "failed", error: "worker_interrupted" });
+  // Un corte antes de registrar el PID tampoco puede dejar la GUI ocupada para siempre.
+  writeFileSync(path, JSON.stringify({ ...job, pid: undefined }));
+  expect(readManagedJob(ctx)).toMatchObject({ status: "failed", error: "worker_interrupted" });
 });
 test("la consulta real al registro conserva una versión estable verificable", async () => {
   const { ctx } = context();

@@ -19,7 +19,7 @@ export const managedUpdateCopy = {
   "managedUpdate.failed": "La actualización no se completó",
   "managedUpdate.succeeded": "Gestor finalizado y versión activa comprobada",
   "managedUpdate.failureHelp": "La operación falló. Consulta el informe con ocx-catalog Status. El gestor conserva los bundles e intenta recuperar el servicio anterior si falla la activación; no se ha declarado éxito.",
-  "managedUpdate.revalidate": "Comprobar instalación con el gestor",
+  "managedUpdate.revalidate": "Ejecutar actualizador protegido",
   "managedUpdate.elapsed": "Tiempo transcurrido: {seconds} s",
   "managedUpdate.incompatible": "La nueva versión cambió archivos del parche. No se activó: hay que adaptar la receta antes de reintentar. No fuerces una instalación npm sobre este bundle.",
 } as const;

@@ -66,7 +66,9 @@ export async function refreshManagedUpdate(ctx: ManagedContext): Promise<void> {
 export function readManagedJob(ctx: ManagedContext): ManagedJob | null {
   const path = join(ctx.root, "managed-dashboard-job.json");
   const job = read<ManagedJob>(path);
-  if (job?.status === "running" && job.pid && !isProcessAlive(job.pid)) {
+  // La única espera por edad corresponde al arranque atómico sin PID; nunca a un proceso vivo.
+  const orphanedLaunch = job?.status === "running" && !job.pid && Date.now() - Date.parse(job.startedAt) > 30_000;
+  if (job?.status === "running" && ((job.pid && !isProcessAlive(job.pid)) || orphanedLaunch)) {
     // Un worker muerto nunca deja la interfaz esperando indefinidamente.
     const failed: ManagedJob = { ...job, status: "failed", phase: "failed", updatedAt: new Date().toISOString(), error: "worker_interrupted" };
     atomicWriteFile(path, JSON.stringify(failed));

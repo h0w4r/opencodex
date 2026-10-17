@@ -207,3 +207,11 @@ implementaciones estáticas de versiones anteriores.
 El gestor prepara un bundle nuevo, verifica tipos, pruebas, GUI y circuitos reales
 antes de activarlo; conserva la versión anterior para reversión. No modifica
 binarios en uso ni publica configuraciones privadas en el fork.
+
+La preparación respeta el pin `testRunnerBun` oficial (1.4.3) mediante
+`scripts/test.ts`; no confunde el runner con el Bun de servicio (1.4.2).
+Los hijos de las pruebas del scheduler comunican fases reales y el supervisor
+puede limitar inactividad en lugar de duración total. Se comprueban tanto la
+finalización de un hijo activo como la recolección de uno silencioso.
+Las baselines Windows corresponden a la navegación oficial 2.88.0; sólo se
+ocultan fecha/estado volátiles del índice y controles asíncronos ya documentados.

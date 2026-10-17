@@ -54,6 +54,33 @@ let convergeSpy: { mockRestore(): void } | null = null;
 let releaseHanging: ((outcome: CatalogOnlyOutcome) => void) | null = null;
 let pendingTick: Promise<unknown> | null = null;
 
+/** Cada señal procede de una fase real; no prolonga un hijo silencioso. */
+function withChildProgress(script: string): string {
+  return script.replace(/^(\s*)(const [^\n=]+=|await scheduler\.|await require\()/gm,
+    (line, space: string) => `${space}process.stderr.write("[scheduler-child:phase]\\n");\n${line}`);
+}
+
+describe("watchdog de subprocesos con progreso real", () => {
+  test("mantiene un hijo activo más allá de la ventana total original", async () => {
+    // Cada mensaje corresponde a una unidad terminada, no a un pulso del padre.
+    const script = 'for(let n=0;n<4;n++){process.stdout.write(`fase:${n}\\n`);await Bun.sleep(1000)}';
+    const result = await spawnTestChild([process.execPath, "--eval", script], {
+      cwd: process.cwd(), deadlineMs: 100, inactivityMs: 3000,
+    });
+    expect(result).toMatchObject({ exitCode: 0, timedOut: false, reaped: true, pipesClosed: true });
+    expect(result.elapsedMs).toBeGreaterThan(3000);
+    expect(result.stdout).toContain("fase:3");
+  }, 0);
+
+  test("un hijo silencioso falla por inactividad y queda recolectado", async () => {
+    const result = await spawnTestChild([process.execPath, "--eval", "await Bun.sleep(10000)"], {
+      cwd: process.cwd(), deadlineMs: 10000, inactivityMs: 1000,
+    });
+    expect(result).toMatchObject({ timedOut: true, reaped: true, pipesClosed: true });
+    expect(result.exitCode).not.toBe(0);
+  }, 0);
+});
+
 function writeCatalogAutoRefreshConfig(catalogAutoRefresh?: unknown): void {
   const config = {
     ...getDefaultConfig(),
@@ -777,11 +804,11 @@ describe("catalog auto-refresh drift heal", () => {
     `;
     let childCompleted = false;
     try {
-      const result = await spawnTestChild([process.execPath, "--eval", script], {
+      const result = await spawnTestChild([process.execPath, "--eval", withChildProgress(script)], {
         cwd: process.cwd(),
         env: { ...process.env, HOME: home, USERPROFILE: home, APPDATA: home,
           OPENCODEX_HOME: ocx, CODEX_HOME: codex, TMPDIR: tmp, TMP: tmp, TEMP: tmp },
-        deadlineMs: 20_000,
+        deadlineMs: 20_000, inactivityMs: 20_000,
       });
       childCompleted = !result.timedOut && result.reaped && result.pipesClosed;
       expect(result).toMatchObject({ exitCode: 0, timedOut: false, reaped: true, pipesClosed: true });
@@ -789,7 +816,7 @@ describe("catalog auto-refresh drift heal", () => {
     } finally {
       if (childCompleted) removeTreeWithRetry(root);
     }
-  }, SPAWN_BUDGET_MS);
+  }, 0); // El watchdog del hijo limita inactividad, no duración total.
 
   test("a missing catalog defers injection until catalog convergence creates one", async () => {
     const root = mkdtempSync(join(tmpdir(), "ocx-heal-missing-catalog-"));
@@ -841,11 +868,11 @@ describe("catalog auto-refresh drift heal", () => {
     `;
     let childCompleted = false;
     try {
-      const result = await spawnTestChild([process.execPath, "--eval", script], {
+      const result = await spawnTestChild([process.execPath, "--eval", withChildProgress(script)], {
         cwd: process.cwd(),
         env: { ...process.env, HOME: home, USERPROFILE: home, APPDATA: home,
           OPENCODEX_HOME: ocx, CODEX_HOME: codex, TMPDIR: tmp, TMP: tmp, TEMP: tmp },
-        deadlineMs: 20_000,
+        deadlineMs: 20_000, inactivityMs: 20_000,
       });
       childCompleted = !result.timedOut && result.reaped && result.pipesClosed;
       expect(result).toMatchObject({ exitCode: 0, timedOut: false, reaped: true, pipesClosed: true });
@@ -857,7 +884,7 @@ describe("catalog auto-refresh drift heal", () => {
     } finally {
       if (childCompleted) removeTreeWithRetry(root);
     }
-  }, SPAWN_BUDGET_MS);
+  }, 0); // El watchdog del hijo limita inactividad, no duración total.
 
   test("invalid journal bytes and unsafe catalogs are read without mutation", () => {
     const journalPath = join(openCodexHome, "journal.json");

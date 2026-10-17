@@ -1,15 +1,15 @@
 {
-  "runId": "2026-09-23T02-22-43-548Z-3f156db3",
-  "reason": "Baseline revisada: máscara limitada a controles GitHub asíncronos; catálogo, geometría, persistencia, a11y y vistas desktop/móvil correctos.",
-  "approvedAt": "2026-09-23T02:24:45.814Z",
+  "runId": "2026-10-17T17-32-40-059Z-1687bb2a",
+  "reason": "Revisión visual desktop/móvil: navegación y badge oficiales de 2.88.0; máscara limitada a fecha/estado de refresco volátiles; controles, modelo, restricciones, geometría y a11y reales satisfactorios.",
+  "approvedAt": "2026-10-17T17:37:08.743Z",
   "files": [
     {
       "path": "desktop/route-0.png",
-      "sha256": "a1ca3ec0f5e5559fcabc0dbfd52062bd115d4f1d68aa6f3e072eb24a062e4e6a"
+      "sha256": "5aa62a5b5e3c565e4c56825ae2fd8ab33ae84ba9bc4b1a6fb899b9d27fe2b59e"
     },
     {
       "path": "mobile/route-0.png",
-      "sha256": "ccb7cf7067a17a6d71b754d1f810899f4e3c52c323cfc42ed81c4b8a76618087"
+      "sha256": "b12e1e01e95957d7fe5f487afd8344effd2f160fc86dfaf38c05e336e0932831"
     }
   ]
 }

@@ -23,9 +23,9 @@ export interface TestChildResult {
  */
 export function spawnTestChild(
   argv: readonly string[],
-  options: { cwd: string; env?: NodeJS.ProcessEnv; deadlineMs: number },
+  options: { cwd: string; env?: NodeJS.ProcessEnv; deadlineMs: number; inactivityMs?: number },
 ): Promise<TestChildResult> {
-  const { cwd, env, deadlineMs } = options;
+  const { cwd, env, deadlineMs, inactivityMs } = options;
   const startedAt = performance.now();
   const maxCaptureBytes = 1024 * 1024;
   return new Promise((resolve, reject) => {
@@ -87,6 +87,12 @@ export function spawnTestChild(
       bytes += chunk.length;
       if (bytes > maxCaptureBytes) { stop(); return; }
       into.push(chunk);
+      // En modo inactividad sólo la salida real del hijo renueva la ventana.
+      // Un latido del supervisor o la duración total no acreditan progreso.
+      if (inactivityMs !== undefined && chunk.length > 0) {
+        clearTimeout(deadline);
+        deadline = setTimeout(stop, inactivityMs);
+      }
     };
     child.stdout?.on("data", (chunk: Buffer) => capture(chunk, stdoutChunks));
     child.stderr?.on("data", (chunk: Buffer) => capture(chunk, stderrChunks));
@@ -117,6 +123,6 @@ export function spawnTestChild(
       signal = exitSignal;
       finish();
     });
-    deadline = setTimeout(stop, deadlineMs);
+    deadline = setTimeout(stop, inactivityMs ?? deadlineMs);
   });
 }

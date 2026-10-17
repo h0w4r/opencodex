@@ -254,3 +254,12 @@ Native steering generation overrides, explicit public-API eligibility and the co
 Dashboard Fast-row persistence and client refresh follow the [Fast selector rows setting contract](../gui-and-management-api.md#fast-selector-rows-setting).
 
 The [compaction routing override](../transports/responses.md#compaction-routing-overrides) is scoped to Codex Responses metadata and original Responses ingress; Claude Messages replay retains its own routing.
+
+
+## Diagnóstico y sincronización local del gateway
+
+Los escritores local y remoto conservan códigos sanitizados distintos para exclusión ocupada,
+fallo de adquisición y errores del filesystem; no agrupan toda excepción como busy_or_unsafe.
+La sincronización de catálogo respeta first-party y sólo reescribe perfiles del modo gateway.
+Una escritura satisfactoria publica su huella aplicada mediante CAS del perfil y modo guardados;
+una edición concurrente no se pisa y un marcador no guardado se informa como fallo parcial.

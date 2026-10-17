@@ -658,7 +658,7 @@ export function writeDesktop3pConfig(
         generateDesktop3pConfig(destination.origin, nativeSlugs, routedModels, gatewayKey, mode, profile, nativeContextCap)
       ));
     }), lifecycleLockDeps);
-  } catch { return { written: false, path: resolveDesktop3pConfigLibraryPath(), reason: "desktop_lifecycle_busy_or_unsafe" }; }
+  } catch (error) { return { written: false, path: resolveDesktop3pConfigLibraryPath(), reason: desktopMutationFailureReason(error) }; }
 }
 
 /** Write the hub's exact entries without constructing a client-local alias registry. */
@@ -686,7 +686,7 @@ export function writeRemoteDesktop3pConfig(options: {
         ? { written: result.status === "applied", path: result.path ?? "", fingerprint: result.fingerprint }
         : { written: false, path: "", reason: result.reason };
     }, options.lifecycleLockDeps);
-  } catch { return { written: false, path: "", reason: "desktop_lifecycle_busy_or_unsafe" }; }
+  } catch (error) { return { written: false, path: "", reason: desktopMutationFailureReason(error) }; }
 }
 
 function writeDesktop3pConfigWithGenerator(

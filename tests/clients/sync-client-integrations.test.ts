@@ -1,3 +1,4 @@
+import { loadConfig } from "../../src/config";
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -99,7 +100,7 @@ describe("Desktop sync rechecks persisted state after discovery", () => {
     removeTreeWithRetry(root);
   });
 
-  for (const outcome of ["off", "refresh", "refusal"] as const) {
+  for (const outcome of ["off", "refresh", "refusal", "first-party"] as const) {
     test(`${outcome} during discovery preserves fresh Desktop state and MCode fan-out`, async () => {
       const config: OcxConfig = {
         port: 10100,
@@ -111,7 +112,7 @@ describe("Desktop sync rechecks persisted state after discovery", () => {
         },
         apiKeys: [{ id: "sync-key", name: "fixture", key: "ocx_old_sync_fixture", createdAt: "2026-01-01T00:00:00.000Z" }],
         providerContextCaps: { openai: 272_000 },
-        claudeCode: { desktopProfile: {
+        claudeCode: { desktopMode: "gateway", desktopProfile: {
           version: 1,
           assignments: { "mock/hidden": { family: "opus", alias: "claude-opus-4-8-20260201" } },
           defaults: { opus: "mock/hidden", fable: null, sonnet: null, haiku: null },
@@ -147,7 +148,7 @@ describe("Desktop sync rechecks persisted state after discovery", () => {
           writes.push(args);
           return outcome === "refusal"
             ? { written: false, path: "fixture", reason: "desktop_remote_store_active" }
-            : { written: true, path: "fixture" };
+            : { written: true, path: "fixture", fingerprint: "synchronized-fingerprint" };
         },
       });
       try {
@@ -156,6 +157,7 @@ describe("Desktop sync rechecks persisted state after discovery", () => {
           sync.then(() => { throw new Error("sync ended without entering Desktop discovery"); }),
         ]);
         const latest = structuredClone(config);
+        if (outcome === "first-party") latest.claudeCode!.desktopMode = "first-party";
         latest.clientIntegrations = { grok: false, "claude-desktop": outcome !== "off" };
         latest.disabledModels = ["mock/hidden", nativeToDisable!];
         latest.apiKeys![0]!.key = "ocx_new_sync_fixture";
@@ -179,11 +181,12 @@ describe("Desktop sync rechecks persisted state after discovery", () => {
         expect(results.filter(result => result.client === "mcode"))
           .toEqual([{ client: "mcode", ok: true, changed: true }]);
         expect(results.filter(result => result.client === "pi" || result.client === "aside")).toEqual([]);
-        if (outcome === "off") {
+        if (outcome === "off" || outcome === "first-party") {
           expect(writes).toHaveLength(0);
           expect(results).toEqual([{ client: "mcode", ok: true, changed: true }]);
         } else {
           expect(writes).toHaveLength(1);
+          if (outcome === "refresh") expect(loadConfig().claudeCode?.desktopProfile?.appliedFingerprint).toBe("synchronized-fingerprint");
           const [port, natives, routed, key, mode, profile, limits] = writes[0]!;
           expect(port).toBe(12345);
           expect(natives).not.toContain(nativeToDisable);

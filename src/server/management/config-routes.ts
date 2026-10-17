@@ -210,13 +210,14 @@ export async function syncEnabledClientIntegrations(
   if (claudeDesktopIntegrationEnabled(config)) {
     try {
       const { writeDesktop3pConfig } = await import("../../claude/desktop-3p");
+      const { resolveClaudeDesktopApplyMode } = await import("../../claude/desktop-first-party");
       const { desktopVisibleNativeSlugs, filterCatalogVisibleModels } = await import("../../codex/catalog");
       const { fetchAllModels } = await import("../management-api");
       const models = await (deps.fetchAllModels ?? fetchAllModels)(config);
       // Discovery admits a concurrent OFF or settings edit. Re-read outside C:
       // the writer facade owns L and its final desired-state check under L→C.
       const latest = loadConfig();
-      if (claudeDesktopIntegrationEnabled(latest)) {
+      if (claudeDesktopIntegrationEnabled(latest) && resolveClaudeDesktopApplyMode(latest) === "gateway") {
         const routed = filterCatalogVisibleModels(models, latest)
           .map(model => ({ provider: model.provider, id: model.id, contextWindow: model.contextWindow }));
         const r = (deps.writeDesktop3pConfig ?? writeDesktop3pConfig)(
@@ -228,8 +229,27 @@ export async function syncEnabledClientIntegrations(
           latest.claudeCode?.desktopProfile,
           nativeContextLimits(latest),
         );
+        // La sincronización también publica la huella: sin ella el panel declara drift
+        // aunque Desktop esté leyendo exactamente el perfil que acabamos de escribir.
+        let markerSaved = true;
+        if (r.written && r.fingerprint) {
+          const { adoptPersistedClaudeCode, mutatePersistedConfig } = await import("../../config");
+          const { recordCommittedDesktopGateway } = await import("../../claude/desktop-gateway-state");
+          const outcome = mutatePersistedConfig(current => {
+            // No sobrescribir una selección o edición concurrente del operador.
+            const unchanged = claudeDesktopIntegrationEnabled(current)
+              && resolveClaudeDesktopApplyMode(current) === "gateway"
+              && JSON.stringify(current.claudeCode?.desktopProfile) === JSON.stringify(latest.claudeCode?.desktopProfile);
+            if (!unchanged) return { changed: false, value: undefined };
+            recordCommittedDesktopGateway(current, current.claudeCode?.desktopProfile, r.fingerprint, new Date().toISOString());
+            return { changed: true, value: structuredClone(current.claudeCode) };
+          });
+          markerSaved = outcome.status !== "unavailable" && outcome.value !== undefined;
+          if (outcome.status !== "unavailable" && outcome.value) adoptPersistedClaudeCode(config, outcome.value);
+        }
         out.push(r.written
-          ? { client: "claude-desktop", ok: true, changed: true }
+          ? markerSaved ? { client: "claude-desktop", ok: true, changed: true }
+            : { client: "claude-desktop", ok: false, reason: "desktop_applied_marker_unsaved" }
           : { client: "claude-desktop", ok: false, reason: r.reason ?? "Claude Desktop write failed" });
       }
     } catch (error) {

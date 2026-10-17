@@ -15,6 +15,26 @@ credenciales, prompts, skills o MCPs. El proveedor se configura por los mecanism
 habituales de OpenCodex. Consultar el catálogo público no requiere una API key;
 ejecutar modelos sí requiere las credenciales y permisos correspondientes.
 
+## Aviso de actualizaciones en la distribución gestionada de Windows
+
+El panel global **Actualizaciones de OpenCodex** muestra la versión activa,
+la última versión estable publicada en npm y la fecha de la última consulta
+correcta. Consulta automáticamente al abrir la GUI y renueva el registro cada
+quince minutos mientras la interfaz está conectada. **Buscar actualizaciones**
+fuerza una consulta; el botón de actualización del sidebar abre este mismo estado.
+
+**Actualizar de forma protegida** prepara y valida el nuevo bundle mediante el
+gestor registrado antes de activar. No reemplaza la personalización con npm global.
+Durante la activación puede haber una breve reconexión. El trabajo sigue oculto
+en segundo plano y su estado persiste al recargar la página. Nunca instala sin clic.
+
+Si una receta no es compatible, el panel informa del fallo y conserva los bundles;
+no se declara una actualización satisfactoria. **Comprobar instalación con el
+gestor** permite volver a ejecutar su decisión: si versión y receta ya coinciden,
+puede finalizar correctamente sin reinstalar. El diagnóstico detallado está en
+`ocx-catalog Status`. Este mecanismo se limita al bundle Windows registrado; no
+altera instalaciones independientes de Linux ni checkouts de desarrollo.
+
 ## Regla de admisión
 
 El modelo debe cumplir **ambas** condiciones:

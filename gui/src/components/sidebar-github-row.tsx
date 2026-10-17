@@ -27,6 +27,7 @@ interface StarStatus {
 }
 
 interface UpdateBadge {
+  managed?: boolean;
   updateAvailable?: boolean;
   latestVersion?: string | null;
   installer?: "bun" | "mise" | "npm" | "pnpm" | "source" | "desktop";
@@ -153,7 +154,7 @@ export function SidebarGithubRow({
         <button
           type="button"
           className={`sidebar-orb${updateAvailable ? " sidebar-orb--update" : ""}`}
-          onClick={onOpenUpdate}
+          onClick={() => { if (badge?.managed) window.dispatchEvent(new Event("ocx-managed-update-open")); else onOpenUpdate(); }}
           aria-label={updateLabel}
           title={updateLabel}
         >

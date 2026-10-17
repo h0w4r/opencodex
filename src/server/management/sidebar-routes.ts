@@ -156,6 +156,9 @@ export async function handleSidebarRoutes(ctx: ManagementContext): Promise<Respo
 
   if (url.pathname === "/api/update/badge" && req.method === "GET") {
     const { readUpdateBadge } = await import("../../update/badge");
+    const { managedUpdateStatus } = await import("../../update/managed-dashboard");
+    const managed = await managedUpdateStatus();
+    if (managed.managed) return jsonResponse({ ...readUpdateBadge(), ...managed, unknown: !managed.latestVersion, channel: "latest" });
     return jsonResponse(readUpdateBadge());
   }
 

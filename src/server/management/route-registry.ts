@@ -229,6 +229,8 @@ export const MANAGEMENT_ROUTES: readonly ManagementRoute[] = [
   { method: "GET", path: "/api/shadow-call-settings", module: "server/management/config-routes", mutates: false },
   { method: "GET", path: "/api/sidecar-settings", module: "server/management/config-routes", mutates: false },
   { method: "GET", path: "/api/startup-health", module: "server/management/config-routes", mutates: false },
+  { method: "GET", path: "/api/update/managed", module: "server/management/config-routes", mutates: false },
+  { method: "POST", path: "/api/update/managed", module: "server/management/config-routes", mutates: true },
   { method: "GET", path: "/api/update/check", module: "server/management/config-routes", mutates: false },
   { method: "GET", path: "/api/update/status", module: "server/management/config-routes", mutates: false },
   { method: "GET", path: "/api/windows-tray", module: "server/management/config-routes", mutates: false },

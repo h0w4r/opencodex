@@ -1,3 +1,4 @@
+import { managedUpdateCopy } from "./managed-update-copy";
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
 
 import { featherlessCopy } from "./featherless-copy";
@@ -75,6 +76,7 @@ export const ko: Record<TKey, string> = {
   "kiroSelection.generic": "자동 선택 제외",
 
   ...featherlessCopy,
+  ...managedUpdateCopy,
   "tray.updated": "업데이트 {time} · 60초마다",
   "tray.today": "오늘",
   "tray.input": "입력",

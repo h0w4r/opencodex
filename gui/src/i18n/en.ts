@@ -1,3 +1,4 @@
+import { managedUpdateCopy } from "./managed-update-copy";
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
 
 import { featherlessCopy } from "./featherless-copy";
@@ -77,6 +78,7 @@ export const en = {
   "kiroSelection.generic": "Not auto-selected",
 
   ...featherlessCopy,
+  ...managedUpdateCopy,
   "tray.updated": "Updated {time} · every 60s",
   "tray.today": "Today",
   "tray.input": "Input",

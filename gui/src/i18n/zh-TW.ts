@@ -1,3 +1,4 @@
+import { managedUpdateCopy } from "./managed-update-copy";
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
 
 import { featherlessCopy } from "./featherless-copy";
@@ -73,6 +74,7 @@ export const zhTW: Record<TKey, string> = {
   "kiroSelection.generic": "不會自動選取",
 
   ...featherlessCopy,
+  ...managedUpdateCopy,
   "tray.updated": "更新於 {time} · 每60秒",
   "tray.today": "今天",
   "tray.input": "輸入",

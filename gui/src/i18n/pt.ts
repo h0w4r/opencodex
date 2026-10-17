@@ -1,3 +1,4 @@
+import { managedUpdateCopy } from "./managed-update-copy";
 import { featherlessCopy } from "./featherless-copy";
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
 // Brazilian Portuguese — generated from en.ts. Must match TKey set (compile-checked).
@@ -9,6 +10,7 @@ import type { TKey } from "./en";
  */
 export const pt: Record<TKey, string> = {
   ...featherlessCopy,
+  ...managedUpdateCopy,
   "reasoningRetention.advanced": "Configurações avançadas",
   "reasoningRetention.title": "Retenção de raciocínio",
   "reasoningRetention.enable": "Ativar retenção de raciocínio",

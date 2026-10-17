@@ -954,6 +954,16 @@
       "scope": "Catálogo público paginado, política local y selección explícita.",
       "path": "featherless-catalog.md",
       "title": "Explorador Featherless"
+    },
+    {
+      "path": "managed-updates.md",
+      "tier": 6,
+      "title": "Actualizaciones gestionadas de Windows",
+      "scope": "Avisos globales, consulta de latest y worker protegido del bundle personalizado.",
+      "documents": [
+        "src/update/managed-dashboard.ts",
+        "src/update/managed-worker.ts"
+      ]
     }
   ],
   "contracts": {

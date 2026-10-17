@@ -907,6 +907,25 @@ export async function handleConfigRoutes(ctx: ManagementContext): Promise<Respon
     }, status);
   }
 
+  // Superficie gestionada: autenticación y origen ya fueron validados por management.
+  if (url.pathname === "/api/update/managed" && (req.method === "GET" || req.method === "POST")) {
+    const managed = await import("../../update/managed-dashboard");
+    if (req.method === "GET") return jsonResponse(await managed.managedUpdateStatus());
+    if (req.method === "POST") {
+      let body: { action?: unknown };
+      try { body = await readManagementJsonBody(req); } catch (error) { rethrowManagementBodyTooLarge(error); return jsonResponse({ error: "invalid_json" }, 400); }
+      if (!body || typeof body.action !== "string" || !["check", "update", "revalidate"].includes(body.action)) return jsonResponse({ error: "invalid_action" }, 400);
+      try {
+        if (body.action === "check") return jsonResponse(await managed.managedUpdateStatus(true));
+        return jsonResponse({ ok: true, job: await managed.startManagedDashboardUpdate(body.action === "revalidate") }, 202);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "managed_update_failed";
+        const allowed = ["managed_unavailable", "update_already_running", "registry_unavailable", "already_latest", "downgrade_refused", "worker_start_failed"];
+        return jsonResponse({ error: allowed.includes(code) ? code : "managed_update_failed" }, 409);
+      }
+    }
+  }
+
   if (url.pathname === "/api/update/check" && req.method === "GET") {
     const { normalizeUpdateChannel } = await import("../../update/job");
     const { packageRefresh } = await import("../../update/refresh-scheduler");

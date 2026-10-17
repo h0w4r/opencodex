@@ -15,6 +15,7 @@ import RemoteWorkspace from "./pages/RemoteWorkspace";
 import RemoteLink from "./pages/RemoteLink";
 import ErrorBoundary from "./components/ErrorBoundary";
 import QuotaSummaryBar from "./components/quota-summary-bar/QuotaSummaryBar";
+import { ManagedUpdateNotice } from "./components/ManagedUpdateNotice";
 import { SidebarGithubRow } from "./components/sidebar-github-row";
 import { DesktopStarOnboarding } from "./components/desktop-star-onboarding";
 import { IconMenu, IconGlobe, IconPower, IconX, IconRefresh} from "./icons";
@@ -549,6 +550,7 @@ export default function App() {
             exists even while the bar inside it does not. The browser dashboard keeps the
             bar as it was: no strip, no reserved row. */}
         {desktopShell ? <MainTopStrip>{quotaSummary}</MainTopStrip> : quotaSummary}
+        <ManagedUpdateNotice apiBase={sharedBase} />
         {/*
           Combos is full-bleed, unlike every other surface, and it is reachable only as
           a Models tab. `.main-inner` is App's element, so App is the only place that

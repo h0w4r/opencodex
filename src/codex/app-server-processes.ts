@@ -671,6 +671,13 @@ export function scanCodexSessionProcesses(io: CodexAppServerProcessIo = {}): Cod
   return scanProcessSnapshots({ ...io, getuid: io.getuid ?? (() => undefined) }, isCodexSessionCommandLine);
 }
 
+/** Async Windows discovery for background launch detection; never blocks the proxy event loop. */
+export async function listCodexAppServerProcessesAsync(): Promise<CodexAppServerProcess[]> {
+  if (process.platform !== "win32") return listCodexAppServerProcesses();
+  const snapshots = await listWindowsSnapshotsAsync();
+  return listCodexAppServerProcesses({ platform: "win32", listSnapshots: () => snapshots });
+}
+
 export function formatStaleCodexAppServerWarning(
   processes: readonly { pid: number }[],
 ): string {

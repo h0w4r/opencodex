@@ -757,7 +757,7 @@ export function writeDesktop3pConfig(
           desktop3pModelOptions(latest.config.claudeCode))
       ), requiredId && refreshOnly ? { requiredId, expectedFingerprint: refreshOnly.appliedFingerprint, admit: refreshOnly.admit } : undefined);
     }), lifecycleLockDeps);
-  } catch { return { written: false, path: resolveDesktop3pConfigLibraryPath(), reason: "desktop_lifecycle_busy_or_unsafe" }; }
+  } catch (error) { return { written: false, path: resolveDesktop3pConfigLibraryPath(), reason: desktopMutationFailureReason(error) }; }
 }
 
 /** Write the hub's exact entries without constructing a client-local alias registry. */
@@ -785,7 +785,7 @@ export function writeRemoteDesktop3pConfig(options: {
         ? { written: result.status === "applied", path: result.path ?? "", fingerprint: result.fingerprint }
         : { written: false, path: "", reason: result.reason };
     }, options.lifecycleLockDeps);
-  } catch { return { written: false, path: "", reason: "desktop_lifecycle_busy_or_unsafe" }; }
+  } catch (error) { return { written: false, path: "", reason: desktopMutationFailureReason(error) }; }
 }
 
 /** Refresh-only writes never follow links, including a dangling backup link. */

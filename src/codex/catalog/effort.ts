@@ -241,6 +241,15 @@ function stampCapabilityProvenance(entry: RawEntry, model: CatalogModel): void {
   };
 }
 
+/**
+ * Slugs cuya escala viene de evidencia por modelo, no del vocabulario nativo observado.
+ *
+ * El ensamblador clona entradas antes del clamp final; una WeakSet por identidad
+ * perdería la marca. El Set vive sólo durante el proceso de sincronización y
+ * jamás añade campos privados al JSON que consume Codex Desktop.
+ */
+const exactReasoningSlugs = new Set<string>();
+
 export function applyReasoningLevels(
   entry: RawEntry,
   effortsOverride?: string[],
@@ -248,6 +257,12 @@ export function applyReasoningLevels(
   preserveExact = false,
   suppressSyntheticMax = false,
 ): void {
+  // La marca vive sólo en memoria y se actualiza en cada derivación para no
+  // conservar una decisión obsoleta si el mismo slug cambia de configuración.
+  if (typeof entry.slug === "string") {
+    if (preserveExact) exactReasoningSlugs.add(entry.slug);
+    else exactReasoningSlugs.delete(entry.slug);
+  }
   let efforts = sanitizeCodexReasoningEfforts(effortsOverride) ?? ROUTED_REASONING_LEVELS.map(l => l.effort);
   // Mock top tiers (user decision 260709): reasoning-capable routed models advertise `max`
   // even when the provider ladder stops lower, unless the model opts out of that synthesis.
@@ -417,8 +432,11 @@ export function clampEntryToCodexSupportedEfforts(
     // that genuinely lack them are out of support, and hiding them from current clients costs
     // more than it buys. Hub admission is a different question and stays fail-closed in
     // `catalogEffortCompatibility` below.
+    const preserveExact = typeof entry.slug === "string" && exactReasoningSlugs.has(entry.slug);
     const kept = levels.filter(level => typeof level?.effort === "string"
-      && (supported.has(level.effort) || UNCLAMPABLE_REASONING_EFFORTS.has(level.effort)));
+      && (supported.has(level.effort)
+        || UNCLAMPABLE_REASONING_EFFORTS.has(level.effort)
+        || (preserveExact && (level.effort === "none" || level.effort === "minimal"))));
     if (requiresExactReserveEfforts(entry)) {
       entry.supported_reasoning_levels = kept;
       if (kept.length === 0) {

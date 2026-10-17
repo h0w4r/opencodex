@@ -89,7 +89,7 @@ export const DASHBOARD_TAB_HASHES = ["dashboard/providers", "dashboard/models"] 
  * is the bare `#models`, so it has no suffix entry here - same convention Dashboard
  * uses for Overview and Logs uses for the log list.
  */
-export const MODELS_TAB_HASHES = ["models/combos", "models/routing", "models/compatibility"] as const;
+export const MODELS_TAB_HASHES = ["models/featherless", "models/combos", "models/routing", "models/compatibility"] as const;
 /** Action deep link that opens the editable JEV Auto template in the Combos tab. */
 export const JEV_AUTO_CREATE_HASH = "models/combos/jev-auto";
 

@@ -1,5 +1,5 @@
 # Subagents And Multi-Agent Surface
-
+> Ampliación local: [catálogo, prompts externos y sincronización](featherless-catalog.md).
 Subagent quota priming remains separate from automatic activation scheduling. See the [quota activation contract](providers/openai-tiers.md#public-provider-contract).
 
 Native result continuations and function-result injection follow [the mode-specific result and control contract](transports/streaming-health.md#experimental-native-function-result-injection); this surface does not infer upstream support or alter its defaults.

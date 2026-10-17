@@ -77,7 +77,7 @@ describe("connection-owned Desktop projection store", () => {
     const deps = { lockPath: join(dir, "locks", "facade.sqlite") };
     const before = hash(readFileSync(join(library, "original.json"), "utf8"));
     withClientLifecycleSync(() => {
-      expect(writeDesktop3pConfig(10100, [], [], undefined, "static", undefined, undefined, deps).written).toBe(false);
+      expect(writeDesktop3pConfig(10100, [], [], undefined, "static", undefined, undefined, deps)).toMatchObject({written:false,reason:"client_lifecycle_busy"});
       expect(removeDesktop3pStandardPivot({ lifecycleLockDeps: deps }).ok).toBe(false);
       expect(hash(readFileSync(join(library, "original.json"), "utf8"))).toBe(before);
     }, deps);

@@ -1,7 +1,7 @@
 import { hasShrinkableOpenAIChatImages, normalizeOpenAIChatImages } from "./openai-chat-images";
 import { protectGlmSummaryBudget, resolveMaxTokens } from "./openai-chat/summary-budget";
 import { chatParallelToolCallsWireValue } from "./openai-chat/parallel-tool-calls";
-import { applyExplicitChatReasoningWirePolicy } from "./openai-chat/reasoning-wire";
+import { applyExplicitChatReasoningWirePolicy, chatThinkingBudgetForEffort } from "./openai-chat/reasoning-wire";
 import type { AdapterRequest, IncomingMeta, ProviderAdapter } from "./base";
 import type { AdapterEvent, OcxParsedRequest, OcxProviderConfig, OcxUsage } from "../types";
 import { modelInList } from "../types";
@@ -53,19 +53,8 @@ export { stripBracketedModelSuffix } from "./openai-chat/wire";
 export { buildOpenAIChatPassthroughRequest } from "./openai-chat/passthrough";
 export { formatOpenAIChatErrorBody } from "./openai-chat/errors";
 
-function thinkingBudgetForEffort(parsed: OcxParsedRequest, reasoningEffort: string, maxOutputTokens?: number): number | undefined {
-  if (parsed.options.reasoning === "minimal") return 0;
-  const maxBudget = maxOutputTokens ?? 32768;
-  const fractions: Record<string, number> = {
-    low: 0.20,
-    medium: 0.50,
-    high: 0.75,
-    xhigh: 0.90,
-    max: 1.0,
-  };
-  const fraction = fractions[reasoningEffort];
-  return fraction === undefined ? undefined : Math.max(1, Math.floor(maxBudget * fraction));
-}
+
+
 
 function canSerializeOpenAIChatServiceTier(
   provider: OcxProviderConfig,
@@ -156,6 +145,7 @@ export function createOpenAIChatAdapter(provider: OcxProviderConfig): ProviderAd
           requestedEffort,
           wireEffort: reasoningEffort,
           reasoningDisabled,
+          maxOutputTokens: maxTokens,
           body,
         });
         let reasoningLog: AdapterRequest["reasoningLog"];
@@ -163,7 +153,7 @@ export function createOpenAIChatAdapter(provider: OcxProviderConfig): ProviderAd
           reasoningLog = explicitReasoning.reasoningLog;
         } else if (reasoningEffort !== undefined) {
           if (modelInList(provider.thinkingBudgetModels, parsed.modelId)) {
-            const budget = thinkingBudgetForEffort(parsed, reasoningEffort, maxTokens);
+            const budget = chatThinkingBudgetForEffort(parsed.options.reasoning, reasoningEffort, maxTokens);
             if (budget !== undefined) {
               body.thinking_budget = budget;
               reasoningLog = {

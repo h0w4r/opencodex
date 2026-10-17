@@ -1,4 +1,6 @@
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
+
+import { featherlessCopy } from "./featherless-copy";
 // Vietnamese — generated from en.ts. Must match TKey set (compile-checked).
 import type { TKey } from "./en";
 
@@ -73,6 +75,8 @@ export const vi: Record<TKey, string> = {
   "kiroSelection.quotaExhausted": "Không tự chọn: hết hạn mức",
   "kiroSelection.cooldown": "Không tự chọn: đang chờ",
   "kiroSelection.generic": "Không tự chọn",
+
+  ...featherlessCopy,
   "tray.updated": "Cập nhật {time} · mỗi 60 giây",
   "tray.today": "Hôm nay",
   "tray.input": "Đầu vào",

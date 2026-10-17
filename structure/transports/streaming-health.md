@@ -1,5 +1,5 @@
 # Streaming Health And WebSocket
-
+> Ampliación local: [catálogo, prompts externos y sincronización](../featherless-catalog.md).
 Management provider-validation calls use the [initialization-independent relative send-path validation](../config.md#provider-relative-send-paths) before persistence.
 
 Native and translated delivery now have separate owners in the

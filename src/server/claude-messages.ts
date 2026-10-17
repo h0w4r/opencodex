@@ -96,6 +96,7 @@ import { markProtocolBlocked, markProtocolEntry } from "../protocols/trace";
 import { recordProtocolShadowPlan } from "../protocols/shadow-plan";
 import { captureAnthropicClientIdentity } from "../adapters/anthropic/client-identity";
 import { nativeMessagesDeclineReason, type NativeMessagesSelector } from "./messages-native-eligibility";
+import { externalPromptPathForRoute, readExternalModelPrompt } from "./responses/external-model-prompt";
 import {
   isApiAuthRequired,
   isDataPlaneAdmissionSecret,
@@ -1472,6 +1473,21 @@ export async function handleClaudeCountTokens(
     captureClaudeInbound("count_tokens", raw, resolveInboundModel(model, cc), req.headers.get("anthropic-beta") ?? undefined);
     if (wantsNativePassthrough(req, config, requestPolicy, model, cc)) {
       return await anthropicNativePassthrough(req, config, { model, provider: "anthropic-native", surface: "claude" }, undefined, raw, "/v1/messages/count_tokens");
+    }
+    // Mirror the resolved external base used by the real Messages send. The native
+    // count endpoint above remains byte-for-byte passthrough to Anthropic.
+    let resolvedCountRoute: ReturnType<typeof routeModel> | undefined;
+    try {
+      resolvedCountRoute = routeModel(config, resolveInboundModel(model, config.claudeCode), evidenceFromBody(raw));
+    } catch { /* Unknown selectors retain the existing best-effort estimate. */ }
+    if (resolvedCountRoute) {
+      const promptPath = externalPromptPathForRoute(config, resolvedCountRoute, "anthropic", req.headers);
+      if (promptPath) {
+        try { raw.system = readExternalModelPrompt(promptPath); }
+        catch (error) {
+          return anthropicErrorResponse(503, error instanceof Error ? error.message : "External model prompt unavailable", "api_error");
+        }
+      }
     }
     // A thread delta would undercount; refuse it exactly as the translated Messages path does.
     if (carriesMessageThread(raw)) return messageThreadUnsupportedResponse();

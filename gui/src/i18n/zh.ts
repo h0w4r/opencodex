@@ -1,4 +1,6 @@
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
+
+import { featherlessCopy } from "./featherless-copy";
 import type { TKey } from "./en";
 
 /**
@@ -71,6 +73,8 @@ export const zh: Record<TKey, string> = {
   "kiroSelection.quotaExhausted": "不会自动选择：配额已用尽",
   "kiroSelection.cooldown": "不会自动选择：冷却中",
   "kiroSelection.generic": "不会自动选择",
+
+  ...featherlessCopy,
   "tray.updated": "更新于 {time} · 每60秒",
   "tray.today": "今天",
   "tray.input": "输入",

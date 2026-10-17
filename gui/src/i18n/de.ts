@@ -1,4 +1,6 @@
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
+
+import { featherlessCopy } from "./featherless-copy";
 // German — generated from en.ts. Must match TKey set (compile-checked).
 import type { TKey } from "./en";
 
@@ -72,6 +74,8 @@ export const de: Record<TKey, string> = {
   "kiroSelection.quotaExhausted": "Nicht automatisch ausgewählt: Kontingent erschöpft",
   "kiroSelection.cooldown": "Nicht automatisch ausgewählt: Abkühlzeit",
   "kiroSelection.generic": "Nicht automatisch ausgewählt",
+
+  ...featherlessCopy,
   "tray.updated": "Aktualisiert {time} · alle 60s",
   "tray.today": "Heute",
   "tray.input": "Eingabe",

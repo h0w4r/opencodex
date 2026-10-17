@@ -1,3 +1,4 @@
+import { configuredReasoningEfforts } from "../reasoning-effort";
 /**
  * `ocx export --client <id>` — print a client config for the live proxy.
  *
@@ -93,7 +94,13 @@ export function exportModelsFromProxyRows(
     // export fall back to the generated-metadata guess the management path never used.
     if (entry.maxTokens !== undefined) model.maxTokens = entry.maxTokens;
     if (entry.maxInputTokens !== undefined) model.maxInputTokens = entry.maxInputTokens;
-    if (entry.reasoningEfforts !== undefined) model.reasoningEfforts = [...entry.reasoningEfforts];
+    // El endpoint de edición puede omitir overrides. Exportar el contrato efectivo,
+    // no permitir que cada cliente invente una escala por el nombre del modelo.
+    const provider = entry.provider ? config.providers[entry.provider] : undefined;
+    const efforts = entry.reasoningEfforts ?? (provider && entry.id ? configuredReasoningEfforts(provider, entry.id) : undefined);
+    if (efforts !== undefined || !entry.native) {
+      model.reasoningEfforts = [...(efforts ?? [])];
+    }
     if (entry.defaultReasoningEffort) model.defaultReasoningEffort = entry.defaultReasoningEffort;
     if (entry.inputModalities && entry.inputModalities.length > 0) {
       model.inputModalities = [...entry.inputModalities];

@@ -1,4 +1,6 @@
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
+
+import { featherlessCopy } from "./featherless-copy";
 // English — source of truth. Its keys define the TKey type; de/fr/ko/zh/zh-TW/ru/ja/tr must match (compile-checked).
 // Strings with {cmd} render a <code> chip via <Trans>; {var} are plain interpolations.
 /**
@@ -73,6 +75,8 @@ export const en = {
   "kiroSelection.quotaExhausted": "Not auto-selected: quota exhausted",
   "kiroSelection.cooldown": "Not auto-selected: cooling down",
   "kiroSelection.generic": "Not auto-selected",
+
+  ...featherlessCopy,
   "tray.updated": "Updated {time} · every 60s",
   "tray.today": "Today",
   "tray.input": "Input",

@@ -10,9 +10,11 @@
  * https://openai.com/index/introducing-gpt-6-sol-and-luna/ (announced 2026-09-22).
  */
 import { afterEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   buildCatalogEntries,
+  applyNativeVisibility,
   NATIVE_OPENAI_MODELS,
   nativeDefaultReasoningEffort,
   nativeInputModalities,
@@ -20,6 +22,7 @@ import {
   nativeOpenAiContextTier,
   nativeOpenAiContextWindow,
   nativeReasoningEfforts,
+  nativeOpenAiSlugs,
   upstreamNativeEntry,
 } from "../../src/codex/catalog";
 import {
@@ -40,6 +43,11 @@ import { DOCUMENTED_NATIVE_OPENAI_ADDITIONS, nativeOpenAiCapabilityDisplayName }
 import { pinnedNativeModelRows } from "../../src/codex/catalog/pinned-models";
 import { resetCodexModelEntitlementCacheForTests } from "../../src/codex/model-entitlements";
 import { repoPath } from "../helpers/repo-root";
+import { installIsolatedCodexHome } from "../helpers/isolated-codex-home";
+import { authenticatedNativeRows, mergeAuthenticatedNativeRows, AUTHENTICATED_NATIVE_ROW_FIELD } from "../../src/codex/catalog/live-native";
+import { hasAuthenticatedNativeCatalogDrift } from "../../src/codex/native-roster-auto-sync";
+import type { CodexModelEntitlementSnapshot } from "../../src/codex/model-entitlements";
+import type { RawEntry } from "../../src/codex/catalog/parsing";
 
 afterEach(() => resetCodexModelEntitlementCacheForTests());
 
@@ -211,6 +219,82 @@ describe("roster-pinned-models.json", () => {
     expect(slugs.slice(0, upstream.length)).toEqual(upstream.map(row => row.slug));
     for (const row of merged.slice(upstream.length)) {
       expect(upstreamSlugs.has(row.slug)).toBe(false);
+    }
+  });
+});
+
+describe("authenticated native roster follows future releases", () => {
+  // Un identificador de prueba no publicado evita confundir un futuro pin real con esta capacidad.
+  const slug = "gpt-99.1-capability-probe";
+  const source = {
+    ...JSON.parse(JSON.stringify(upstreamNativeEntry(NATIVE_GPT6_SOL_MODEL))) as RawEntry,
+    slug,
+    display_name: "GPT futuro de prueba",
+    comp_hash: "future-release-test",
+  };
+  function snapshot(confirmed: boolean, rows: RawEntry[]): CodexModelEntitlementSnapshot {
+    return {
+      modelsByAccount: new Map([["__main__", new Set(rows.map(row => String(row.slug)))]]),
+      modelRowsByAccount: new Map([["__main__", new Map(rows.map(row => [String(row.slug), row]))]]),
+      clientVersionByAccount: new Map([["__main__", "0.159.0"]]),
+      confirmedAccountIds: confirmed ? new Set(["__main__"]) : new Set(),
+      credentialIdentities: new Map([["__main__", "test-main"]]),
+    };
+  }
+
+  test("publishes exact authenticated metadata without adding a static native id", () => {
+    const observed = authenticatedNativeRows(snapshot(true, [source]));
+    const row = observed.get(slug)!;
+    expect(row.display_name).toBe("GPT futuro de prueba");
+    expect(row.supported_reasoning_levels).toEqual(source.supported_reasoning_levels);
+    expect(row[AUTHENTICATED_NATIVE_ROW_FIELD]).toBe(true);
+    expect(NATIVE_OPENAI_MODELS).not.toContain(slug);
+    expect(hasAuthenticatedNativeCatalogDrift(observed, [], true)).toBe(true);
+    const merged = mergeAuthenticatedNativeRows([], snapshot(true, [source]));
+    expect(merged.slugs).toEqual([slug]);
+    expect(hasAuthenticatedNativeCatalogDrift(observed, merged.rows, true)).toBe(false);
+  });
+
+  test("keeps verified rows during outages and removes them on confirmed withdrawal", () => {
+    const existing = mergeAuthenticatedNativeRows([], snapshot(true, [source])).rows;
+    expect(mergeAuthenticatedNativeRows(existing, snapshot(false, [])).slugs).toEqual([slug]);
+    expect(mergeAuthenticatedNativeRows(existing, snapshot(true, [])).slugs).toEqual([]);
+    expect(hasAuthenticatedNativeCatalogDrift(new Map(), existing, false)).toBe(false);
+    expect(hasAuthenticatedNativeCatalogDrift(new Map(), existing, true)).toBe(true);
+  });
+
+  test("rejects malformed native metadata rather than synthesizing capabilities", () => {
+    const malformed = { ...source, context_window: 0 };
+    expect(authenticatedNativeRows(snapshot(true, [malformed])).has(slug)).toBe(false);
+  });
+
+  test("the default bundled catalog still publishes a newer verified disk row with exact capabilities", () => {
+    const home = installIsolatedCodexHome("ocx-future-native-publication-");
+    try {
+      // This file is the same surface the live sync writes; no model ID enters a static list.
+      const exact = {
+        ...source,
+        supported_reasoning_levels: [
+          { effort: "low", description: "Low" },
+          { effort: "medium", description: "Medium" },
+          { effort: "high", description: "High" },
+        ],
+        default_reasoning_level: "high",
+        [AUTHENTICATED_NATIVE_ROW_FIELD]: true,
+      };
+      writeFileSync(join(home.path, "opencodex-catalog.json"), JSON.stringify({ models: [exact] }), "utf8");
+      expect(nativeOpenAiSlugs()).toContain(slug);
+      expect(nativeReasoningEfforts(slug)).toEqual(["low", "medium", "high"]);
+      expect(nativeDefaultReasoningEffort(slug)).toBe("high");
+      expect(nativeOpenAiContextWindow(slug)).toBe(272_000);
+      expect(nativeOpenAiContextTier(slug)).toEqual({ defaultWindow: 272_000, longWindow: 872_000 });
+      const rows = buildCatalogEntries(nativeTemplate(), [slug], [], [], false, "default");
+      const row = rows.find(entry => entry.slug === slug);
+      expect(row?.display_name).toBe("GPT futuro de prueba");
+      expect(efforts(row)).toEqual(["low", "medium", "high"]);
+      expect(applyNativeVisibility(rows, new Set([slug]))[0]?.visibility).toBe("hide");
+    } finally {
+      home.restore();
     }
   });
 });

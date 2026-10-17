@@ -1,4 +1,6 @@
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
+
+import { featherlessCopy } from "./featherless-copy";
 import type { TKey } from "./en";
 
 /** Traditional Chinese (Taiwan) UI strings — keys must match `en.ts` 1:1. */
@@ -69,6 +71,8 @@ export const zhTW: Record<TKey, string> = {
   "kiroSelection.quotaExhausted": "不會自動選取：配額已用盡",
   "kiroSelection.cooldown": "不會自動選取：冷卻中",
   "kiroSelection.generic": "不會自動選取",
+
+  ...featherlessCopy,
   "tray.updated": "更新於 {time} · 每60秒",
   "tray.today": "今天",
   "tray.input": "輸入",

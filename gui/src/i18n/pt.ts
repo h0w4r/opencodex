@@ -1,3 +1,4 @@
+import { featherlessCopy } from "./featherless-copy";
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
 // Brazilian Portuguese — generated from en.ts. Must match TKey set (compile-checked).
 import type { TKey } from "./en";
@@ -7,6 +8,7 @@ import type { TKey } from "./en";
  * Technical terms and model identifiers intentionally remain English.
  */
 export const pt: Record<TKey, string> = {
+  ...featherlessCopy,
   "reasoningRetention.advanced": "Configurações avançadas",
   "reasoningRetention.title": "Retenção de raciocínio",
   "reasoningRetention.enable": "Ativar retenção de raciocínio",

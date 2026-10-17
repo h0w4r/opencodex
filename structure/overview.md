@@ -1,5 +1,5 @@
 # Overview
-
+> Ampliación local: [catálogo, prompts externos y sincronización](featherless-catalog.md).
 Management provider-validation calls use the [shared relative send-path validation](config.md#provider-relative-send-paths) before persistence.
 Native steering follows [the shared WebSocket contract](transports/streaming-health.md#experimental-native-mid-turn-steering); this surface's defaults remain unchanged.
 

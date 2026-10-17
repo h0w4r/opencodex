@@ -50,6 +50,7 @@ import { deriveEntry, finishUpstreamNativeEntry, isExactComboCatalogEntry } from
 import { PICKER_ORDER_PRIORITY_BASE, SPAWN_PRIORITY_FIELD } from "./subagent-roster";
 import { applyConfiguredUltraFast, configuredUltraFastSlugs } from "./configured-tiers";
 import { applyNativeUltraFastTier } from "./native-ultrafast";
+import { AUTHENTICATED_NATIVE_ROW_FIELD } from "./live-native";
 
 export interface ObservedCatalogEntryBuildInput {
   readonly template: RawEntry | null;
@@ -393,7 +394,7 @@ export function isOcxAuthoredRoutedEntry(entry: RawEntry): boolean {
 
 function recoverableNativeSlug(entry: RawEntry): string | null {
   const slug = typeof entry.slug === "string" ? entry.slug : "";
-  return SUPPORTED_NATIVE_OPENAI_SLUGS.has(slug)
+  return (SUPPORTED_NATIVE_OPENAI_SLUGS.has(slug) || entry[AUTHENTICATED_NATIVE_ROW_FIELD] === true)
     && !isNativeAliasCatalogEntry(entry)
     && entry.owned_by !== COMBO_NAMESPACE
     ? slug
@@ -706,7 +707,8 @@ export function mergeCatalogEntriesFromObservedState({
       delete preserved[SPAWN_PRIORITY_FIELD];
       // Older natives kept from disk still need the mock top tiers (max + ultra always
       // for subagent max spawns; wire-clamped to the model's real top rung).
-      if (!isGpt56NativeSlug(slug) && slug !== NATIVE_RESERVE_MODEL) ensureUltraReasoningLevel(preserved);
+      if (!isGpt56NativeSlug(slug) && slug !== NATIVE_RESERVE_MODEL
+        && preserved[AUTHENTICATED_NATIVE_ROW_FIELD] !== true) ensureUltraReasoningLevel(preserved);
       return preserved;
     })
     : [];
@@ -924,7 +926,7 @@ export function mergeCatalogEntriesFromObservedState({
     // without persisted provenance, only a healthy provider rebuild can distinguish and remove
     // an older synthetic rung from a real provider-declared rung. max only: 5.6 exact ladders
     // (luna: no ultra) stay intact.
-    if (!freshCustomEntries.has(m) && !exactCombo && !reserveProjection && !String(e.slug ?? "").startsWith("opencode-go/")) {
+    if (!freshCustomEntries.has(m) && !finalRoutedEntrySet.has(m) && !exactCombo && !reserveProjection && !String(e.slug ?? "").startsWith("opencode-go/")) {
       const levels = Array.isArray(e.supported_reasoning_levels)
         ? e.supported_reasoning_levels as Array<Partial<CodexReasoningLevel>>
         : [];

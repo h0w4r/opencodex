@@ -11,7 +11,7 @@ focus/draft semantics and translated copy. The hook protects same-provider selec
 and stale roster reads; confirmed pool-setting changes seed new overrides immediately, without
 overwriting an existing custom draft. Old servers do not show a synthetic control. See
 [Anthropic threshold semantics](providers/anthropic-account-thresholds.md). Connection probes use the [discovery credential ownership contract](providers/anthropic-account-pool.md#discovery-credential-ownership), including a live check before sending.
-
+> Ampliación local: [catálogo, prompts externos y sincronización](featherless-catalog.md).
 Anthropic account rows now expose the shared boolean `paused` DTO and use the existing
 `PUT /api/oauth/accounts/pause` body `{ provider, accountId, paused }`. The dashboard's
 `ProviderAuthPanel` and `useProviderAccountPools` reuse the translated pause/resume actions,

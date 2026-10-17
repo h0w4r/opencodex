@@ -516,6 +516,11 @@ export interface OcxConfig {
   /** Experimental macOS app-server stdout shim; absent or false disables it. */
   chatgptDesktop?: { appServerShim?: boolean };
   port: number;
+  /** Operator-owned prompt files applied only after an external Codex/Claude route is resolved. */
+  externalModelPrompts?: {
+    codex?: string;
+    claudeCode?: string;
+  };
   /** Runtime topology role. Absence preserves the historical standalone behavior. */
   runtimeRole?: OcxRuntimeRole;
   /** Hub-only public management metadata. Presence is inert outside the hub role. */

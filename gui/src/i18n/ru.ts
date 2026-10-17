@@ -1,4 +1,6 @@
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
+
+import { featherlessCopy } from "./featherless-copy";
 import type { TKey } from "./en";
 
 /**
@@ -71,6 +73,8 @@ export const ru: Record<TKey, string> = {
   "kiroSelection.quotaExhausted": "Не выбирается автоматически: квота исчерпана",
   "kiroSelection.cooldown": "Не выбирается автоматически: ожидание",
   "kiroSelection.generic": "Не выбирается автоматически",
+
+  ...featherlessCopy,
   "tray.updated": "Обновлено {time} · каждые 60с",
   "tray.today": "Сегодня",
   "tray.input": "Вход",

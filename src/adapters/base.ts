@@ -152,12 +152,17 @@ export interface AdapterRequest {
         }
       | {
           effectiveEffort: string;
+          wireField: "chat_template_kwargs.enable_thinking";
+          wireValue: boolean;
+        }
+      | {
+          effectiveEffort: string;
           wireField: "thinking_budget";
           wireValue: number;
         }
       | {
           effectiveEffort: string;
-          wireField: "reasoning_effort" | "reasoning.effort" | "thinking.type";
+          wireField: "reasoning_effort" | "chat_template_kwargs.reasoning_effort" | "reasoning.effort" | "thinking.type";
           wireValue: string;
         };
     /**

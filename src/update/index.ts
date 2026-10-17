@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createSupervisionLatch, inspectDesktopSupervision } from "../service/desktop-supervision.mjs";
 import { manualUpdateFailureGuidance } from "./update-failure-guidance.mjs";
+import { runManagedFeatherlessUpdate } from "./managed-featherless";
 import { STOP_HISTORY_INCOMPLETE_EXIT_CODE } from "./stop-contract.mjs";
 import { proxyIdentityAt } from "../server/proxy-liveness";
 import { probeProxyLiveness } from "./proxy-liveness-probe.mjs";
@@ -415,6 +416,7 @@ async function resolvedRuntimeOwnership(): Promise<RuntimeOwnershipObservation> 
  * Bun binary.
  */
 export async function runUpdate(): Promise<void> {
+  if (await runManagedFeatherlessUpdate()) return;
   const ownership = detectInstallOwnership();
   const installer = ownership.installer;
   const current = currentVersion();

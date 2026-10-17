@@ -410,14 +410,20 @@ interface CachedAccountModels {
   readonly models: ReadonlySet<string>;
   readonly accessProgramsByModel?: ReadonlyMap<string, CodexAvailableAccessPrograms>;
   readonly availabilityNuxByModel?: ReadonlyMap<string, { message: string }>;
+  readonly modelRows?: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
   readonly confirmed: boolean;
   readonly provenance?: CodexModelEntitlementProvenance;
 }
+
+/** Access programs reported by the authenticated Codex roster, never inferred from a model name. */
+export type CodexModelAccessPrograms = Readonly<Record<string, readonly string[]>>;
 
 export interface CodexModelEntitlementSnapshot {
   readonly modelsByAccount: ReadonlyMap<string, ReadonlySet<string>>;
   readonly accessProgramsByAccount?: ReadonlyMap<string, ReadonlyMap<string, CodexAvailableAccessPrograms>>;
   readonly availabilityNuxByAccount?: ReadonlyMap<string, ReadonlyMap<string, { message: string }>>;
+  /** Authenticated, visible, API-supported roster rows; never inferred from a model name. */
+  readonly modelRowsByAccount?: ReadonlyMap<string, ReadonlyMap<string, Readonly<Record<string, unknown>>>>;
   readonly clientVersionByAccount: ReadonlyMap<string, string>;
   readonly confirmedAccountIds: ReadonlySet<string>;
   readonly credentialIdentities: ReadonlyMap<string, string>;
@@ -655,6 +661,7 @@ function parseAccountModels(text: string): {
   models: ReadonlySet<string>;
   accessProgramsByModel: ReadonlyMap<string, CodexAvailableAccessPrograms>;
   availabilityNuxByModel: ReadonlyMap<string, { message: string }>;
+  modelRows: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
 } | null {
   try {
     const payload = JSON.parse(text) as { models?: unknown };
@@ -684,7 +691,8 @@ function parseAccountModels(text: string): {
       return [row.slug];
     });
     return { models: new Set(models), accessProgramsByModel, availabilityNuxByModel,
-      discoveredRows: validateDiscoveredNativeRows(payload.models) };
+      discoveredRows: validateDiscoveredNativeRows(payload.models),
+      modelRows: new Map(validateDiscoveredNativeRows(payload.models).map(row => [String(row.slug), row])) };
   } catch {
     return null;
   }
@@ -701,6 +709,8 @@ function unconfirmedAccountModels(
     clientVersion,
     expiresAt: now + MODEL_ROSTER_FAILURE_TTL_MS,
     models: new Set(),
+    modelRows: new Map(),
+    accessProgramsByModel: new Map(),
     confirmed: false,
     provenance,
   };
@@ -770,7 +780,7 @@ async function fetchAccountModels(
       // upstream ever raises its true requirement above the measured constant, that constant is
       // the only thing standing between an entitled account and a five-minute cached denial.
       .some(([modelId, minimum]) => (
-        !models.has(modelId) && compareClientVersions(clientVersion, minimum) < 0
+        !parsed.models.has(modelId) && compareClientVersions(clientVersion, minimum) < 0
       ));
     return {
       credentialIdentity: credential.credentialIdentity,
@@ -781,6 +791,7 @@ async function fetchAccountModels(
       models,
       accessProgramsByModel,
       availabilityNuxByModel,
+      modelRows: parsed.modelRows,
       confirmed: true,
     };
   } catch (error) {
@@ -959,6 +970,8 @@ async function modelsForCredential(
       clientVersion,
       expiresAt: now,
       models: new Set(),
+      modelRows: new Map(),
+      accessProgramsByModel: new Map(),
       confirmed: false,
     };
   }
@@ -974,6 +987,8 @@ async function modelsForCredential(
       clientVersion,
       expiresAt: now,
       models: new Set(),
+      modelRows: new Map(),
+      accessProgramsByModel: new Map(),
       confirmed: false,
     };
   }
@@ -1344,6 +1359,8 @@ export async function resolveCodexModelEntitlements(
       result.confirmed && result.availabilityNuxByModel
         ? [[credential.accountId, result.availabilityNuxByModel] as const] : []
     ))),
+    modelRowsByAccount: new Map(results.flatMap(({ credential, result }) => result.confirmed && result.modelRows
+      ? [[credential.accountId, result.modelRows] as const] : [])),
     clientVersionByAccount: new Map(results.map(({ credential, result }) => (
       [credential.accountId, result.clientVersion]
     ))),
@@ -1687,6 +1704,8 @@ export function seedCodexModelEntitlementsForTests(
     clientVersion,
     expiresAt: now + MODEL_ROSTER_TTL_MS,
     models: new Set(models),
+    modelRows: new Map(),
+    accessProgramsByModel: new Map(),
     confirmed: true,
   });
 }

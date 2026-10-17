@@ -1,4 +1,6 @@
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
+
+import { featherlessCopy } from "./featherless-copy";
 import type { TKey } from "./en";
 
 /**
@@ -71,6 +73,8 @@ export const ja: Record<TKey, string> = {
   "kiroSelection.quotaExhausted": "自動選択されません: 利用枠を使い切りました",
   "kiroSelection.cooldown": "自動選択されません: 待機中",
   "kiroSelection.generic": "自動選択されません",
+
+  ...featherlessCopy,
   "tray.updated": "更新 {time} · 60秒ごと",
   "tray.today": "今日",
   "tray.input": "入力",

@@ -8,15 +8,21 @@
 
 import { navigateHash, normalizeHashPath, splitHashQuery } from "../hash-routing";
 import { JEV_AUTO_CREATE_HASH } from "../app-routing";
+import type { TKey } from "../i18n/shared";
+/** Descripciones asociadas al contrato compartido de pestañas. */
+export const SUBTITLE_TKEY: Record<ModelsTab, TKey> = {
+  catalog: "models.subtitle", featherless: "models.subtitle.featherless",
+  combos: "models.subtitle.combos", routing: "models.subtitle.routing", compatibility: "models.subtitle.compatibility",
+};
 
 /**
  * `catalog` rather than `models` for the first tab: the page is Models and its first
  * tab shows the plain model list, so a distinct id keeps "the page" and "the tab" from
  * ever having to be disambiguated in code. The visible label is still "Models".
  */
-export type ModelsTab = "catalog" | "combos" | "routing" | "compatibility";
+export type ModelsTab = "catalog" | "featherless" | "combos" | "routing" | "compatibility";
 
-export const MODELS_TABS: readonly ModelsTab[] = ["catalog", "combos", "routing", "compatibility"];
+export const MODELS_TABS: readonly ModelsTab[] = ["catalog", "featherless", "combos", "routing", "compatibility"];
 
 export function modelsTabHash(tab: ModelsTab): string {
   return tab === "catalog" ? "models" : `models/${tab}`;
@@ -34,6 +40,7 @@ export function modelsTabHash(tab: ModelsTab): string {
 export function readModelsTab(hash = window.location.hash): ModelsTab {
   // A compatibility prefilter rides in `?query` (protocol-deep-links.ts); the tab is the path.
   const raw = splitHashQuery(normalizeHashPath(hash)).path;
+  if (raw === "models/featherless") return "featherless";
   if (raw === "models/combos" || raw === JEV_AUTO_CREATE_HASH || raw === "combos" || raw.startsWith("combos/")) return "combos";
   if (raw === "models/routing" || raw === "routing" || raw.startsWith("routing/")) return "routing";
   if (raw === "models/compatibility" || raw === "lab" || raw.startsWith("lab/")) return "compatibility";

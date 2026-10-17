@@ -1,5 +1,5 @@
 # Transport Inventory
-
+> Ampliación local: [catálogo, prompts externos y sincronización](../featherless-catalog.md).
 OpenCode Go's Gemini model uses the [Go Gemini transport contract](../providers/google.md#opencode-go-gemini-transport)
 through the Google adapter and the default server fetch path.
 

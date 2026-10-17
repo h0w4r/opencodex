@@ -491,6 +491,14 @@ See [v2 outcomes](/reference/cli/agents/#explicit-v2-target-and-outcome) and
 for target, scope and spending boundaries. A reset-grant status read can contact
 upstream status but never consumes or resumes a grant.
 
+OpenCodex consulta el catálogo nativo autenticado de Codex y conserva los metadatos reales de
+modelos nuevos (contexto, modalidades y niveles de razonamiento). Con la integración de Codex
+habilitada, también reconcilia el catálogo al detectar una nueva instancia `app-server`, una
+actualización del runtime de Codex Desktop y, como respaldo, una discrepancia observada en el
+catálogo nativo. Estos eventos ejecutan la convergencia existente de todos los proveedores.
+Un `app-server` que ya cargó el catálogo anterior en memoria puede requerir reiniciar Codex
+Desktop para mostrarlo; OpenCodex no interrumpe conversaciones automáticamente.
+
 ### `ocx sync [--restart-codex] [--restart-app-server-only]`
 
 An explicitly requested restart also runs after a successful committed `config.toml` change, even if the catalog and cache bytes are unchanged. A configuration-only no-op, refusal, preflight, or rolled-back write does not trigger it. Without a restart flag, sync never automatically restarts Codex.

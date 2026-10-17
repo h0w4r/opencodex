@@ -9,6 +9,7 @@ import {
   catalogAutoRefreshIntervalForTests,
   catalogAutoRefreshTickCountForTests,
   isCatalogAutoRefreshRunning,
+  refreshCatalogAfterClientEvent,
   resetCatalogAutoRefreshForTests,
   runCatalogAutoRefreshTickForTests,
   selectDriftHealCatalogPath,
@@ -119,6 +120,12 @@ afterEach(async () => {
 });
 
 describe("catalog auto-refresh scheduler", () => {
+  test("Codex launch or update forces the existing catalog-only convergence path", async () => {
+    writeCatalogAutoRefreshConfig();
+    await refreshCatalogAfterClientEvent();
+    expect(convergeFactoryCalls).toBe(1);
+    expect(catalogAutoRefreshTickCountForTests()).toBe(1);
+  });
   test("start is idempotent, clamps below the floor, unrefs the timer, and stop clears the cadence", () => {
     // A live 15-minute interval would keep a test process alive if it were ref'd, which is
     // the whole reason start unrefs. Spying setInterval is how the sweeper and update-job
@@ -407,6 +414,34 @@ describe("catalog auto-refresh scheduler", () => {
     await first;
     expect(convergeFactoryCalls).toBe(1);
     expect(catalogAutoRefreshTickCountForTests()).toBe(1);
+  });
+
+  test("a client launch queues a forced refresh behind an in-flight periodic tick", async () => {
+    writeCatalogAutoRefreshConfig({ enabled: true, intervalMinutes: 60 });
+    let releaseFirst!: (outcome: CatalogOnlyOutcome) => void;
+    const firstOutcome = new Promise<CatalogOnlyOutcome>(resolve => { releaseFirst = resolve; });
+    let firstEntered!: () => void;
+    let secondEntered!: () => void;
+    const firstStarted = new Promise<void>(resolve => { firstEntered = resolve; });
+    const secondStarted = new Promise<void>(resolve => { secondEntered = resolve; });
+    let call = 0;
+    convergeImpl = () => {
+      call += 1;
+      if (call === 1) { firstEntered(); return firstOutcome; }
+      secondEntered();
+      return Promise.resolve(COMMITTED_CATALOG_ONLY);
+    };
+
+    const periodic = runCatalogAutoRefreshTickForTests();
+    pendingTick = periodic;
+    await firstStarted;
+    await refreshCatalogAfterClientEvent();
+    expect(convergeFactoryCalls).toBe(1);
+    releaseFirst(COMMITTED_CATALOG_ONLY);
+    await periodic;
+    await secondStarted;
+    expect(convergeFactoryCalls).toBe(2);
+    expect(catalogAutoRefreshTickCountForTests()).toBe(2);
   });
 });
 
@@ -699,15 +734,20 @@ describe("catalog auto-refresh drift heal", () => {
     const driftPath = fileURLToPath(new URL("../../src/codex/config-drift-heal.ts", import.meta.url));
     const desiredPath = fileURLToPath(new URL("../../src/codex/desired-state.ts", import.meta.url));
     const processStatePath = fileURLToPath(new URL("../../src/config/process-state.ts", import.meta.url));
-    const syncPath = fileURLToPath(new URL("../../src/codex/sync.ts", import.meta.url));
     const injectPath = fileURLToPath(new URL("../../src/codex/inject.ts", import.meta.url));
     const configPath = fileURLToPath(new URL("../../src/config.ts", import.meta.url));
     const admissionPath = fileURLToPath(new URL("../../src/codex/admission.ts", import.meta.url));
     const ownershipPath = fileURLToPath(new URL("../../src/integrations/native/ownership-preflight.ts", import.meta.url));
     const script = `
-      const { spyOn } = require("bun:test");
+      const { spyOn, mock } = require("bun:test");
       const fs = require("node:fs");
       const path = require("node:path");
+      // El hijo verifica el inyector; el catálogo remoto pertenece a otro circuito.
+      // Registrar el seam antes de importar evita cargar y ejecutar el sync real.
+      mock.module(${JSON.stringify(fileURLToPath(new URL("../../src/codex/management-convergence.ts", import.meta.url)))}, () => ({
+        createManagementConvergeCodex: () => async () => ({ kind: "catalog-only", changed: false,
+          catalogRefresh: { status: "committed", changed: false, degraded: false, notices: [] } }),
+      }));
       const configModule = require(${JSON.stringify(configPath)});
       const sources = require(${JSON.stringify(fileURLToPath(new URL("../../src/codex/catalog-auto-refresh-sources.ts", import.meta.url)))});
       spyOn(sources, "refreshCatalogAutoRefreshSources").mockResolvedValue(undefined);
@@ -715,7 +755,6 @@ describe("catalog auto-refresh drift heal", () => {
       const drift = require(${JSON.stringify(driftPath)});
       const desired = require(${JSON.stringify(desiredPath)});
       const processState = require(${JSON.stringify(processStatePath)});
-      const sync = require(${JSON.stringify(syncPath)});
       const inject = require(${JSON.stringify(injectPath)});
       const admission = require(${JSON.stringify(admissionPath)});
       const ownership = require(${JSON.stringify(ownershipPath)});
@@ -729,7 +768,6 @@ describe("catalog auto-refresh drift heal", () => {
       spyOn(processState, "readRuntimePort").mockReturnValue({ pid: process.pid, port: 43210 });
       spyOn(admission, "admitCodexWrite").mockReturnValue({ kind: "admitted" });
       spyOn(ownership, "inspectNativeCodexOwnership").mockReturnValue({ ownership: "owned", reason: "fixture" });
-      spyOn(sync, "syncModelsToCodex").mockImplementation(async () => { throw new Error("full sync called"); });
       let received = null;
       spyOn(inject, "injectCodexConfig").mockImplementation(async (_port, _config, options) => { received = options.catalogPath; options.beforeClientWrite(); return { success: true, message: "fixture" }; });
       spyOn(console, "info").mockImplementation(() => {});

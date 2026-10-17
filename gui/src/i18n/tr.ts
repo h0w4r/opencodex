@@ -1,4 +1,6 @@
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
+
+import { featherlessCopy } from "./featherless-copy";
 // Turkish — generated from en.ts. Must match TKey set (compile-checked).
 import type { TKey } from "./en";
 
@@ -72,6 +74,8 @@ export const tr: Record<TKey, string> = {
   "kiroSelection.quotaExhausted": "Otomatik seçilmiyor: kota tükendi",
   "kiroSelection.cooldown": "Otomatik seçilmiyor: bekleme süresi",
   "kiroSelection.generic": "Otomatik seçilmiyor",
+
+  ...featherlessCopy,
   "tray.updated": "Güncellendi {time} · her 60 sn",
   "tray.today": "Bugün",
   "tray.input": "Girdi",

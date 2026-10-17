@@ -1,5 +1,5 @@
 # xAI Grok Provider
-
+> Ampliación local: [catálogo, prompts externos y sincronización](../featherless-catalog.md).
 Managed alias allocation retries nested-table reservation when rewriting references
 cannot parse the first candidate. Other rewrite failures still refuse the update.
 

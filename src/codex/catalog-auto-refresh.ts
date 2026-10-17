@@ -49,6 +49,8 @@ let liveIntervalMs: number | null = null;
 let generation = 0;
 /** setInterval does not skip a firing while the previous callback is still awaiting. */
 let inFlight = false;
+/** Do not discard a launch/update refresh just because a periodic tick owns the funnel. */
+let queuedForcedTick = false;
 
 /** Refreshes already-connected clients after a changed catalog; owned by the server lifecycle. */
 export type CatalogChangedClientFanout =
@@ -186,10 +188,13 @@ function restartIfCadenceChanged(configured: number): void {
   timer.unref?.();
 }
 
-async function tick(): Promise<void> {
+async function tick(force = false): Promise<void> {
   // An interval firing while the previous converge is still awaiting would stack
   // provider fetches precisely when a slow /models call is already in flight.
-  if (inFlight) return;
+  if (inFlight) {
+    if (force) queuedForcedTick = true;
+    return;
+  }
   inFlight = true;
   const entryGeneration = generation;
   try {
@@ -205,12 +210,12 @@ async function tick(): Promise<void> {
     // field — listener binding and disk-only keys included — against what is on disk
     // by then, and concurrent hand edits survive the tick.
     armDetachedConfigBaseline(config);
-    if (!isCatalogAutoRefreshEnabled(config)) return;
+    if (!force && !isCatalogAutoRefreshEnabled(config)) return;
     const configured = resolveCatalogAutoRefreshIntervalMs(config);
     // 0 is dormant: the section stays configured but this tick must not converge,
     // and the unref'd timer is left running so flipping the minutes back on is
     // picked up without a process restart.
-    if (configured === 0) return;
+    if (configured === 0 && !force) return;
     // The default-on case belongs to installs whose local Codex client this proxy manages. With
     // the integration off (or on a hub or sibling), an absent section keeps the old opt-in
     // meaning: no background converge may write the native Codex home unasked. An explicit
@@ -250,6 +255,16 @@ async function tick(): Promise<void> {
     // A stop or restart landed while the funnel was loading: the result belongs to a
     // generation that no longer owns the timer, so it must not publish.
     if (entryGeneration !== generation) return;
+    // Refresco de capacidades fuera del camino de inferencia. Un fallo del formatter
+    // preserva las escalas verificadas; todos los clientes derivan el mismo catálogo.
+    const { refreshFeatherlessReasoningProfiles } = await import("../providers/featherless-reasoning");
+    const reasoningProfilesChanged = await refreshFeatherlessReasoningProfiles(config);
+    // Un probe remoto puede sobrevivir al stop: no publicar desde una generación retirada.
+    if (entryGeneration !== generation) return;
+    if (reasoningProfilesChanged) {
+      const { saveConfigPreservingClaudeCode } = await import("../config");
+      saveConfigPreservingClaudeCode(config);
+    }
     const converge = createManagementConvergeCodex(config);
     const outcome = await converge(createCatalogConvergeRequest({ deadlineMs: TICK_DEADLINE_MS }));
     if (entryGeneration !== generation) return;
@@ -268,7 +283,7 @@ async function tick(): Promise<void> {
         : "[catalog-auto-refresh] served model set changed");
     }
     const fanout = clientFanout;
-    if (outcome.changed && fanout) {
+    if ((outcome.changed || reasoningProfilesChanged) && fanout) {
       const current = () => entryGeneration === generation;
       try {
         const failed = (await fanout(current)).filter(result => !result.ok).length;
@@ -282,7 +297,16 @@ async function tick(): Promise<void> {
     // A failed refresh is not an error worth surfacing: the next tick tries again.
   } finally {
     inFlight = false;
+    if (queuedForcedTick) {
+      queuedForcedTick = false;
+      void tick(true);
+    }
   }
+}
+
+/** Reuse the catalog-only convergence funnel for a Codex launch or installed-runtime update. */
+export async function refreshCatalogAfterClientEvent(): Promise<void> {
+  await tick(true);
 }
 
 /** Idempotent. A second call while running is a no-op, matching startQuotaResetPoller. */
@@ -324,6 +348,7 @@ export function stopCatalogAutoRefresh(): void {
     timer = null;
   }
   liveIntervalMs = null;
+  queuedForcedTick = false;
   generation += 1;
   detachShutdownHook?.();
   detachShutdownHook = null;

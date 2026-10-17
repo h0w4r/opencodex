@@ -82,3 +82,47 @@ describe("OpenAI Chat reasoning wire policy parity", () => {
     });
   });
 });
+
+describe("Featherless effort parity across client protocols", () => {
+  const id = "example/tool-reasoner";
+  const featherless: OcxProviderConfig = {
+    adapter: "openai-chat", baseUrl: "https://api.featherless.ai/v1", apiKey: "test-only",
+    modelReasoningEfforts: { [id]: ["none", "high"] },
+    modelReasoningEffortMap: { [id]: { none: "disabled", high: "enabled" } },
+  };
+  for (const effort of ["none", "high", "medium"]) {
+    test(`Responses and raw Chat agree on ${effort}`, () => {
+      const input = { model: id, messages: [{ role: "user", content: "Responde OK" }], reasoning_effort: effort, max_tokens: 1024 };
+      const parsed = parseRequest(chatCompletionsToResponsesBody(input));
+      const translated = createOpenAIChatAdapter(featherless).buildRequest(parsed);
+      const direct = buildOpenAIChatPassthroughRequest(featherless, input, id, false);
+      const a = JSON.parse(translated.body), b = JSON.parse(direct.body);
+      expect(a.chat_template_kwargs).toEqual(b.chat_template_kwargs);
+      expect(a.chat_template_kwargs.enable_thinking).toBe(effort !== "none");
+      expect(b).not.toHaveProperty("reasoning_effort");
+      expect(direct.reasoningLog).toBeDefined();
+    });
+  }
+  test("a verified template effort is not emitted as an unsupported top-level field", () => {
+    const named: OcxProviderConfig = { ...featherless,
+      modelReasoningEfforts: { [id]: ["low", "medium", "high"] },
+      modelReasoningEffortMap: { [id]: { low: "template:low", medium: "template:medium", high: "template:high" } },
+    };
+    const request = buildOpenAIChatPassthroughRequest(named, { model: id, messages: [], reasoning_effort: "low" }, id, false);
+    const body = JSON.parse(request.body);
+    expect(body.chat_template_kwargs.reasoning_effort).toBe("low");
+    expect(request.reasoningLog?.wireField).toBe("chat_template_kwargs.reasoning_effort");
+    expect(body).not.toHaveProperty("reasoning_effort");
+  });
+  test("a budget projection is identical across both ingress protocols", () => {
+    const budget: OcxProviderConfig = { ...featherless, thinkingBudgetModels: [id],
+      modelReasoningEfforts: { [id]: ["none", "low", "medium", "high"] },
+      modelReasoningEffortMap: { [id]: { none: "disabled" } },
+    };
+    const input = { model: id, messages: [{role:"user",content:"OK"}], reasoning_effort: "medium", max_tokens: 1024 };
+    const a = createOpenAIChatAdapter(budget).buildRequest(parseRequest(chatCompletionsToResponsesBody(input)));
+    const b = buildOpenAIChatPassthroughRequest(budget, input, id, false);
+    expect(JSON.parse(a.body).chat_template_kwargs).toEqual(JSON.parse(b.body).chat_template_kwargs);
+    expect(JSON.parse(b.body).chat_template_kwargs.thinking_budget).toBe(512);
+  });
+});

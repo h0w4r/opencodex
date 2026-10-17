@@ -1900,3 +1900,14 @@ original reasoning. Other model families require the preserve declaration.
 Tool-enabled DeepSeek requests also require reasoning on earlier assistant answers without tool
 calls. The configured placeholder fills these omissions; no original reasoning can be recovered
 from the tool-call cache for those turns. Preserve their supplied reasoning for full fidelity.
+
+### Featherless: controles reales de razonamiento
+
+Los controles de Featherless dependen de cada plantilla, no de la escala de GPT.
+`none/high` representa un interruptor apagado/encendido cuando eso es lo único
+verificado. No significa que existan niveles bajo o medio ocultos. Un modelo
+sin controles seleccionables puede razonar siempre. OpenCodex conserva el
+contenido real de continuidad entre herramientas y no inventa niveles.
+Responses, Anthropic Messages y Chat Completions comparten la misma traducción
+de las capacidades verificadas. La reconciliación del catálogo revalida las
+selecciones activas y conserva las escalas previas si falla el formatter remoto.

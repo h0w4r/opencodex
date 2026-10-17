@@ -9,10 +9,10 @@ import { normalizeExportModels, inputModalitiesForClient, exportModelLabel, auth
  * Completions so routed providers retain their established wire format, while
  * native OpenAI models can use the lossless Responses surface.
  */
-export interface OmpModelEntry extends PiModelEntry {
+export interface OmpModelEntry extends Omit<PiModelEntry, "reasoning"> {
   api?: "openai-responses";
-  /** omp requires this flag before it honors a thinking block. */
-  reasoning?: true;
+  /** omp requires true before it honors a thinking block; false suppresses its own model heuristics. */
+  reasoning?: boolean;
   thinking?: {
     mode: "effort";
     efforts: string[];
@@ -78,6 +78,11 @@ export function buildOmpClientConfig(ctx: ExportContext): OmpGeneratedConfig {
         efforts,
         ...(defaultLevel && efforts.includes(defaultLevel) ? { defaultLevel } : {}),
       };
+    } else if (Array.isArray(model.reasoningEfforts) && model.reasoningEfforts.length === 0) {
+      // An explicit empty ladder is authoritative "no reasoning" metadata. Omitting the
+      // field lets OMP apply its own name-based inference, which can invent a generic
+      // effort ladder for models the provider has explicitly classified as non-reasoning.
+      entry.reasoning = false;
     }
     models.push(entry);
   }

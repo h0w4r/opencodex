@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createOpenAIChatAdapter } from "../../src/adapters/openai-chat";
-import { gatherRoutedModels } from "../../src/codex/catalog";
+import { buildCatalogEntries, clampEntryToCodexSupportedEfforts, gatherRoutedModels } from "../../src/codex/catalog";
 import { catalogHintsFromModelsApiItem } from "../../src/codex/catalog/provider-fetch";
 import { clearModelCache } from "../../src/codex/model-cache";
 import { buildInitProviders } from "../../src/cli/init";
@@ -220,6 +220,93 @@ describe("Featherless provider", () => {
     expect(body.model).toBe(modelId);
     expect(body).not.toHaveProperty("parallel_tool_calls");
     expect(body).not.toHaveProperty("reasoning_effort");
+  });
+
+  test("serializes a verified Featherless toggle as nested chat-template kwargs", () => {
+    const modelId = "deepseek-ai/DeepSeek-V4.1-Flash";
+    const config = providerConfig({
+      modelReasoningEfforts: { [modelId]: ["none", "high"] },
+      modelReasoningEffortMap: { [modelId]: { none: "disabled", high: "enabled" } },
+      modelSuppressSyntheticMax: { [modelId]: true },
+      preserveReasoningContentModels: [modelId],
+    });
+    const route = routeModel(config, `featherless/${modelId}`);
+    const adapter = createOpenAIChatAdapter(route.provider);
+    const parsed = {
+      modelId: route.modelId,
+      context: { messages: [{ role: "user" as const, content: "ping", timestamp: 0 }], tools: [] },
+      stream: true,
+      options: { reasoning: "high" },
+    };
+
+    const enabled = JSON.parse(String(adapter.buildRequest(parsed).body)) as Record<string, unknown>;
+    const disabled = JSON.parse(String(adapter.buildRequest({ ...parsed, options: { reasoning: "none" } }).body)) as Record<string, unknown>;
+    expect(enabled.chat_template_kwargs).toEqual({
+      enable_thinking: true,
+      preserve_thinking: true,
+      clear_thinking: false,
+    });
+    expect(disabled.chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(enabled).not.toHaveProperty("reasoning_effort");
+    expect(disabled).not.toHaveProperty("reasoning_effort");
+  });
+
+  test("keeps an evidence-backed Featherless custom ladder exact in the Codex picker", async () => {
+    const modelId = "Qwen/Qwen3.8-27B";
+    const config = providerConfig({ liveModels: false });
+    config.customModels = [{
+      id: "verified",
+      provider: "featherless",
+      modelId,
+      reasoningEfforts: ["none", "high"],
+      defaultReasoningEffort: "high",
+    }];
+    const models = await gatherRoutedModels(config);
+    const model = models.find(row => row.provider === "featherless" && row.id === modelId)!;
+    const row = buildCatalogEntries(null, [], [model]).find(entry => entry.slug?.startsWith("featherless/"));
+
+    expect(model.preserveExactReasoning).toBe(true);
+    expect(row?.supported_reasoning_levels?.map(level => level.effort)).toEqual(["none", "high"]);
+    expect(row?.default_reasoning_level).toBe("high");
+    // The shortened label is cosmetic: the canonical route remains stable for history/config.
+    expect(row?.slug).toBe("featherless/Qwen-Qwen3.8-27B");
+    expect(row?.display_name).toBe("fth/Qwen-Qwen3.8-27B");
+
+    // El catálogo nativo de OpenAI normalmente no enumera `none`; aun así Codex lo
+    // acepta como sentinela declarado y no debe borrar el apagado verificado de Featherless.
+    // El ensamblador real clona las entradas antes del clamp observado. La
+    // exactitud debe sobrevivir al clon sin publicar campos privados.
+    const cloned = structuredClone(row!);
+    clampEntryToCodexSupportedEfforts(cloned, new Set(["low", "medium", "high", "xhigh", "max", "ultra"]));
+    expect(cloned.supported_reasoning_levels?.map(level => level.effort)).toEqual(["none", "high"]);
+    expect(Object.keys(cloned).some(key => key.includes("exact"))).toBe(false);
+  });
+
+  test("publishes provider-declared vision without inferring it from the model name", async () => {
+    const config = providerConfig({ liveModels: false });
+    config.customModels = [
+      {
+        id: "vision",
+        provider: "featherless",
+        modelId: "zai-org/GLM-5.3-Flash",
+        inputModalities: ["text", "image"],
+      },
+      {
+        id: "text-only",
+        provider: "featherless",
+        modelId: "zai-org/GLM-5.3",
+        inputModalities: ["text"],
+      },
+    ];
+
+    const rows = buildCatalogEntries(null, [], await gatherRoutedModels(config));
+    const flash = rows.find(row => row.slug === "featherless/zai-org-GLM-5.3-Flash");
+    const base = rows.find(row => row.slug === "featherless/zai-org-GLM-5.3");
+
+    expect(flash?.input_modalities).toEqual(["text", "image"]);
+    expect(base?.input_modalities).toEqual(["text"]);
+    expect(flash?.display_name).toBe("fth/zai-org-GLM-5.3-Flash");
+    expect(base?.display_name).toBe("fth/zai-org-GLM-5.3");
   });
 
   test("does not retarget an older same-named custom provider or adapter", () => {

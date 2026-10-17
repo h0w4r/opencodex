@@ -1,5 +1,5 @@
 # Inbound Compatibility Surfaces
-
+> Ampliación local: [catálogo, prompts externos y sincronización](../featherless-catalog.md).
 The names used for these paths (native, translated, legacy bridge) and the declared per-feature
 dispositions are owned by [Protocol Paths](protocol-paths.md).
 

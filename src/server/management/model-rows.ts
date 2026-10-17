@@ -40,9 +40,9 @@ import {
 } from "../../clients/config-export/contracts";
 import { customRowExportMetadata } from "./model-row-export-metadata";
 import { providerContextCap } from "../../providers/context-cap";
-import { isVisionReasoningEffort, modelRecordValue, sanitizeCodexReasoningEfforts } from "../../reasoning-effort";
+import { configuredReasoningEfforts, isVisionReasoningEffort, modelRecordValue, sanitizeCodexReasoningEfforts } from "../../reasoning-effort";
 import { routedSlug, slugEquals } from "../../providers/slug-codec";
-import type { OcxConfig } from "../../types";
+import { modelInList, type OcxConfig } from "../../types";
 import { enrichProviderFromRegistry } from "../../providers/derive";
 import { ensureCodexEntitlementFreshness } from "../../codex/model-entitlements";
 import { fetchAllModels } from "./shared";
@@ -374,6 +374,8 @@ export async function listManagementModelRows(
   });
   const customModels: ManagementModelRow[] = (config.customModels ?? []).map(cm => {
     const namespaced = routedSlug(cm.provider, cm.modelId);
+    const provider = config.providers[cm.provider];
+    const reasoningDisabled = modelInList(provider?.noReasoningModels, cm.modelId);
     return {
       provider: cm.provider,
       id: cm.modelId,
@@ -387,11 +389,17 @@ export async function listManagementModelRows(
       // Stored override, not the inherited ladder: the edit dialog must show what the user
       // set (including an explicit empty "no reasoning" ladder), not what the provider row
       // happens to advertise today.
-      ...(Array.isArray(cm.reasoningEfforts) ? { reasoningEfforts: [...cm.reasoningEfforts] } : {}),
+      ...(reasoningDisabled
+        ? { reasoningEfforts: [] }
+        : Array.isArray(cm.reasoningEfforts)
+          ? { reasoningEfforts: [...cm.reasoningEfforts] }
+          : {}),
       // The stored default rides along so a client reloading /api/models can restore the
       // full edit state; the GUI has no default-effort control today, but dropping it here
       // would make any future PUT-based edit lose it silently.
-      ...(cm.defaultReasoningEffort ? { defaultReasoningEffort: cm.defaultReasoningEffort } : {}),
+      ...(!reasoningDisabled && cm.defaultReasoningEffort
+        ? { defaultReasoningEffort: cm.defaultReasoningEffort }
+        : {}),
     };
   });
   const publicModels = uniqueCatalogModelsForPublicList(models);
@@ -467,7 +475,9 @@ export async function listManagementModelRows(
       : undefined;
     const inputModalitiesDeclared = routed ? declaredModelInputModalities(config, m.provider, m.id) : undefined;
     const contextWindowDeclared = routed ? config.providers[m.provider]?.modelContextWindows?.[m.id] : undefined;
-    return {
+    const provider = config.providers[m.provider];
+    const reasoningDisabled = modelInList(provider?.noReasoningModels, m.id);
+    const row: ManagementModelRow = {
       ...m,
       ...displayName,
       namespaced,
@@ -496,6 +506,15 @@ export async function listManagementModelRows(
           : {}),
       },
     };
+    // `noReasoningModels` is authoritative at the wire boundary. The public catalog can
+    // still carry a generic registry ladder, so project it as an explicit empty ladder
+    // before any client export sees the row. Otherwise OMP (and every other exported
+    // client) advertises effort levels that the router deliberately strips from requests.
+    if (reasoningDisabled) {
+      row.reasoningEfforts = [];
+      delete row.defaultReasoningEffort;
+    }
+    return row;
   }).filter((row): row is ManagementModelRow => row !== null);
   // Manual OpenAI rows retain their routed selector but replace the bare dashboard row.
   // Account-qualified rows remain distinct, explicitly selected routes.
@@ -554,13 +573,16 @@ export async function listManagementModelRows(
  * `defaultReasoningEffort` is the picker's preference order, whose medium → low → first
  * fallback fabricates a default no source declared.
  */
-export function toExportModel(row: ManagementModelRow): ExportModel {
+export function toExportModel(row: ManagementModelRow, config?: Pick<OcxConfig, "providers">): ExportModel {
   const effective = row.exportMetadata;
   const contextWindow = effective?.contextWindow ?? row.contextWindow;
   const maxTokens = effective?.maxTokens ?? row.maxOutputTokens;
   const maxInputTokens = effective?.maxInputTokens ?? row.maxInputTokens;
   const inputModalities = effective?.inputModalities ?? row.inputModalities;
-  const reasoningEfforts = effective?.reasoningEfforts ?? row.reasoningEfforts;
+  const provider = config?.providers[row.provider];
+  const reasoningEfforts = effective?.reasoningEfforts ?? row.reasoningEfforts
+    ?? (provider ? configuredReasoningEfforts(provider, row.id) : undefined)
+    ?? (row.native ? undefined : []);
   // The projection is the authority on the default. When it exists, an absent default means
   // NO declared default — falling back to the row would reintroduce the picker's synthetic
   // medium/low value, which is exactly what this projection exists to keep out of exports.
@@ -676,7 +698,7 @@ export async function loadExportModels(
   // Management deliberately lists the full roster so hidden models can be enabled.
   // A client picker must also honor the provider selection, not just its blocklist.
   const visibleRouted = new Set(filterCatalogVisibleModels(rows.filter(row => !row.native), admitted));
-  const exported = rows.filter(row => !row.disabled && (row.native || visibleRouted.has(row))).map(toExportModel);
+  const exported = rows.filter(row => !row.disabled && (row.native || visibleRouted.has(row))).map(row => toExportModel(row, admitted));
   // Retain the FINAL projection, not an input to it. A preview that rebuilt from raw provider
   // caches would miss static and forward providers, which never populate one, and would skip the
   // retention, metadata, combo and filtering this function applies afterwards.

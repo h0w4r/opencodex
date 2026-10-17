@@ -1,6 +1,7 @@
 import { modelInList, type OcxProviderConfig } from "../../types";
 import type { AdapterRequest } from "../base";
 import { isNativeOpenAIChatTarget } from "./wire";
+import { isFeatherlessCatalogProvider } from "../../providers/featherless-catalog";
 
 export type ExplicitChatReasoningWireResult =
   | { handled: false }
@@ -18,6 +19,7 @@ export function applyExplicitChatReasoningWirePolicy(options: {
   wireEffort: string | undefined;
   reasoningDisabled: boolean;
   body: Record<string, unknown>;
+  maxOutputTokens?: number;
 }): ExplicitChatReasoningWireResult {
   const {
     provider,
@@ -30,6 +32,31 @@ export function applyExplicitChatReasoningWirePolicy(options: {
   } = options;
 
   if (reasoningDisabled) return { handled: false };
+  // Un único compilador para Responses, Messages y Chat: nunca enviar aliases
+  // internos enabled/disabled como reasoning_effort estándar a Featherless.
+  if (isFeatherlessCatalogProvider(provider) && wireEffort !== undefined
+      && (wireEffort === "enabled" || wireEffort === "disabled"
+        || wireEffort.startsWith("template:")
+        || modelInList(provider.thinkingBudgetModels, modelId))) {
+    const enabled = wireEffort !== "disabled";
+    const kwargs: Record<string, unknown> = wireEffort.startsWith("template:")
+      ? { reasoning_effort: wireEffort.slice("template:".length) }
+      : { enable_thinking: enabled };
+    if (enabled) {
+      kwargs.preserve_thinking = true;
+      kwargs.clear_thinking = false;
+      if (modelInList(provider.thinkingBudgetModels, modelId)) {
+        const budget = chatThinkingBudgetForEffort(requestedEffort, wireEffort, options.maxOutputTokens);
+        if (budget !== undefined) kwargs.thinking_budget = budget;
+      }
+    }
+    delete body.reasoning_effort;
+    delete body.reasoning;
+    body.chat_template_kwargs = kwargs;
+    return { handled: true, reasoningLog: wireEffort.startsWith("template:")
+      ? { effectiveEffort: requestedEffort ?? wireEffort, wireField: "chat_template_kwargs.reasoning_effort", wireValue: wireEffort.slice(9) }
+      : { effectiveEffort: requestedEffort ?? wireEffort, wireField: "chat_template_kwargs.enable_thinking", wireValue: enabled } };
+  }
   if (hasTools && modelInList(provider.omitReasoningEffortWithToolsModels, modelId)) {
     delete body.reasoning_effort;
     delete body.reasoning;
@@ -86,4 +113,12 @@ export function applyExplicitChatReasoningWirePolicy(options: {
       wireValue: wireEffort,
     },
   };
+}
+
+/** Presupuesto común a todos los protocolos; es una proyección local, no niveles del proveedor. */
+export function chatThinkingBudgetForEffort(requested: string | undefined, effort: string, maxOutputTokens?: number): number | undefined {
+  if (requested === "minimal") return 0;
+  const fractions: Record<string, number> = { low: 0.20, medium: 0.50, high: 0.75, xhigh: 0.90, max: 1.0 };
+  const fraction = fractions[effort];
+  return fraction === undefined ? undefined : Math.max(1, Math.floor((maxOutputTokens ?? 32768) * fraction));
 }

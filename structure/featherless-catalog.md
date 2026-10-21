@@ -11,6 +11,8 @@ del modelo seleccionado y lleva `context_length` y `max_completion_tokens` a los
 mapas físicos por modelo. La selección y el sincronizador comparten esa lectura.
 El gate de herramientas usa OFF sólo cuando la selección lo declara; no acredita
 razonamiento con ese smoke y registra finish_reason si no consume el resultado.
+`FEATHERLESS_VERIFY_TOOL_MODEL` permite una matriz explícita por capacidad;
+cada resultado conserva el modelo real y exige lectura y consumo del nonce.
 `--limits-only` actualiza sólo límites. Un fallo conserva lo conocido sin inventar
 un tope global. `tests/providers/featherless-provider.test.ts` cubre el contrato.
 

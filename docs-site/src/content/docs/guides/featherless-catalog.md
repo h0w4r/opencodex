@@ -14,6 +14,8 @@ global compartido. Para reconciliar selecciones existentes sin sondear esfuerzos
 Una consulta fallida conserva los datos anteriores y queda registrada.
 El gate corto de herramientas usa razonamiento OFF únicamente si el modelo lo
 declara; no se presenta ese recorrido como prueba de razonamiento activado.
+`FEATHERLESS_VERIFY_TOOL_MODEL` separa el modelo de herramientas del de visión;
+el informe atribuye cada capacidad al modelo que realmente completó su prueba.
 
 Claude Desktop recibe el `maxEffort` oficial en apply, CLI y refrescos automáticos, sin perder la escala canónica.
 Ese campo sólo oculta niveles superiores: no puede expresar huecos como

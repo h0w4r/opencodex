@@ -45,6 +45,7 @@ import { getRoutingProfile, resolvePolicyProfileId, POLICY_NAMESPACE } from "./r
 import { evaluatePolicyProfile, type PolicyRequestEvidence } from "./routing/evaluator";
 import { assemblePolicyCandidateEvidence } from "./routing/compatibility/assemble";
 import { resolveModelPolicy, type ResolvedModelPolicy } from "./providers/resolved-model-policy";
+import { withConfiguredModelTokenLimits } from "./providers/model-token-limits";
 
 /** Explicit Pool 2 admission refusal; ingress must not recover it through default routing. */
 export class AnthropicSecondaryInstanceUnavailableError extends Error {
@@ -353,7 +354,9 @@ function routeResult(
   const effectiveModelId = redirected ?? modelId;
   const effectiveRouteReason = redirected ? "blocked-model-redirect" : routeReason;
   const codexAccountMode = providerCodexAccountMode(providerName, provider);
-  const routedProvider = routedProviderConfig(providerName, provider);
+  const routedProvider = withConfiguredModelTokenLimits(
+    config, providerName, effectiveModelId, routedProviderConfig(providerName, provider),
+  );
   const effectiveAlias = config
     ? effectiveProviderAliasDecision(providerName, provider, config)
     : undefined;

@@ -1,4 +1,4 @@
-import { protectGlmSummaryBudget } from "./summary-budget";
+import { protectGlmSummaryBudget, applyNativeChatTokenBudget } from "./summary-budget";
 import { openAIChatTransport, stripBracketedModelSuffix } from "./wire";
 import type { AdapterRequest } from "../base";
 import { frameAgentRouterMessages } from "../agentrouter";
@@ -83,6 +83,7 @@ export function buildOpenAIChatPassthroughRequest(
   body.messages = replayNativeChatReasoning(body.messages, provider, modelId, replayScope,
     Array.isArray(rawBody.tools) && rawBody.tools.length > 0);
   if (protectGlmSummaryBudget(body, provider.baseUrl, body.reasoning_effort)) body.reasoning_effort = "low";
+  applyNativeChatTokenBudget(body, provider, modelId);
   const rawEfforts = modelRecordValue(provider.modelReasoningEfforts, modelId) ?? provider.reasoningEfforts;
   const reasoningDisabled = modelInList(provider.noReasoningModels, modelId) || rawEfforts?.length === 0;
   if (reasoningDisabled) {

@@ -964,6 +964,19 @@
         "src/update/managed-dashboard.ts",
         "src/update/managed-worker.ts"
       ]
+    },
+    {
+      "path": "providers/chat-token-budget.md",
+      "tier": 4,
+      "title": "Presupuesto dinámico de tokens Chat",
+      "scope": "Ventanas por modelo, reservas de entrada estimadas y máximos de salida en Chat traducido y nativo.",
+      "documents": [
+        "src/adapters/",
+        "src/lib/",
+        "src/providers/",
+        "src/router.ts",
+        "src/server/"
+      ]
     }
   ],
   "contracts": {

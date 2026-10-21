@@ -137,6 +137,13 @@ export function createOpenAIChatAdapter(provider: OcxProviderConfig): ProviderAd
         const reasoningDisabled = modelInList(provider.noReasoningModels, parsed.modelId);
         const requestedEffort = protectGlmSummaryBudget(body, provider.baseUrl, parsed.options.reasoning)
           ? "low" : parsed.options.reasoning;
+        // La compatibilidad de resúmenes no puede elevar la salida por encima de
+        // las cotas reales del destino después de calcular el presupuesto inicial.
+        if (typeof body.max_tokens === "number" && body.max_tokens !== maxTokens) {
+          body.max_tokens = resolveMaxTokens(provider, {
+            ...parsed, options: { ...parsed.options, maxOutputTokens: body.max_tokens },
+          });
+        }
         const reasoningEffort = mapReasoningEffort(provider, parsed.modelId, requestedEffort);
         const explicitReasoning = applyExplicitChatReasoningWirePolicy({
           provider,

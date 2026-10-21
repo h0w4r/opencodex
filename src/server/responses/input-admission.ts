@@ -17,10 +17,11 @@ import {
   type NativeContextLimitsInput,
 } from "../../codex/catalog/metadata";
 import { getModelMetadata } from "../../generated/model-metadata";
-import { estimateTokens } from "../../lib/token-estimate";
+import { estimateInputTokens } from "../../lib/request-input-estimate";
+export { estimateInputTokens } from "../../lib/request-input-estimate";
 import { isCanonicalOpenAiForwardProvider, OPENAI_CODEX_PROVIDER_ID } from "../../providers/openai-tiers";
 import { modelRecordValue } from "../../reasoning-effort";
-import { modelInList, type OcxContentPart, type OcxParsedRequest, type OcxProviderConfig } from "../../types";
+import type { OcxParsedRequest, OcxProviderConfig } from "../../types";
 
 /**
  * Multiplier applied to the ceiling before refusing.
@@ -45,16 +46,6 @@ import { modelInList, type OcxContentPart, type OcxParsedRequest, type OcxProvid
  */
 export const ADMISSION_TOLERANCE = 2.5;
 
-/**
- * Token cost charged for a remote image URL. The bytes are not in this request — the
- * provider fetches them — so the URL own length is not the cost. A small flat charge
- * acknowledges the tiles the image will occupy without pretending to know its dimensions.
- */
-const REMOTE_IMAGE_TOKENS = 850;
-
-/** Decoded image bytes per token. Coarse tile-count proxy, not a provider formula. */
-const IMAGE_BYTES_PER_TOKEN = 750;
-
 export interface InputAdmissionResult {
   admitted: boolean;
   estimatedTokens: number;
@@ -66,87 +57,6 @@ export interface InputAdmissionResult {
 
 function positive(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
-}
-
-/**
- * Charge a `data:` URL by its DECODED size rather than its character length: base64 inflates
- * by 4/3, so charging the string would overcount by a third. A remote URL is charged flat.
- */
-function imageTokens(imageUrl: string): number {
-  if (!imageUrl.startsWith("data:")) return REMOTE_IMAGE_TOKENS;
-  const comma = imageUrl.indexOf(",");
-  if (comma < 0) return REMOTE_IMAGE_TOKENS;
-  const payload = imageUrl.length - comma - 1;
-  if (payload <= 0) return 0;
-  const decoded = Math.floor((payload * 3) / 4);
-  return Math.max(1, Math.ceil(decoded / IMAGE_BYTES_PER_TOKEN));
-}
-
-function contentPartTokens(part: OcxContentPart, modelId: string): number {
-  if (part.type === "image") return imageTokens(part.imageUrl);
-  if (part.type === "video") return imageTokens(part.videoUrl);
-  // An inline document is a base64 payload, not a sentence: estimating it from its marker would
-  // admit a request whose real input is orders of magnitude larger. Counted arithmetically —
-  // rebuilding the data URL here would materialize a second request-sized string just to measure it.
-  if (part.type === "document") return base64PayloadTokens(part.data);
-  return estimateTokens(part.text, modelId);
-}
-
-function base64PayloadTokens(base64: string): number {
-  if (base64.length === 0) return 0;
-  const decoded = Math.floor((base64.length * 3) / 4);
-  return Math.max(1, Math.ceil(decoded / IMAGE_BYTES_PER_TOKEN));
-}
-
-function contentTokens(content: string | readonly OcxContentPart[], modelId: string): number {
-  if (typeof content === "string") return estimateTokens(content, modelId);
-  let total = 0;
-  for (const part of content) total += contentPartTokens(part, modelId);
-  return total;
-}
-
-/**
- * Estimate the input tokens of a parsed request.
- *
- * Walks the whole `OcxMessage` union rather than user text alone. Assistant turns carry
- * their content as `OcxAssistantContentPart[]` — text, thinking blocks, and tool calls whose
- * JSON arguments are frequently the largest single item in an agent conversation. A walk
- * that counted only `{type:"text"}` would undercount exactly the turns that trigger this
- * gate. The routed provider determines whether replayed thinking reaches the wire.
- */
-export function estimateInputTokens(parsed: OcxParsedRequest, modelId: string, provider?: OcxProviderConfig): number {
-  const { context } = parsed;
-  const countThinking = provider?.adapter !== "openai-chat"
-    || modelInList(provider.preserveReasoningContentModels, parsed.modelId);
-  let total = 0;
-
-  for (const prompt of context.systemPrompt ?? []) total += estimateTokens(prompt, modelId);
-
-  for (const message of context.messages) {
-    if (message.role === "assistant") {
-      for (const part of message.content) {
-        if (part.type === "text") total += estimateTokens(part.text, modelId);
-        else if (part.type === "thinking") {
-          if (countThinking) total += estimateTokens(part.thinking, modelId);
-        }
-        else total += estimateTokens(part.name, modelId) + estimateTokens(JSON.stringify(part.arguments), modelId);
-      }
-      // Opaque provider blob replayed verbatim upstream, so it costs real input tokens.
-      if (message.kiroRedactedReasoning) total += estimateTokens(message.kiroRedactedReasoning, modelId);
-      continue;
-    }
-    total += contentTokens(message.content, modelId);
-  }
-
-  // Tool schemas ride every turn: name, description, and the JSON parameter schema all
-  // reach the upstream, and a large MCP catalog can dominate a short conversation.
-  for (const tool of context.tools ?? []) {
-    total += estimateTokens(tool.name, modelId)
-      + estimateTokens(tool.description, modelId)
-      + estimateTokens(JSON.stringify(tool.parameters), modelId);
-  }
-
-  return total;
 }
 
 /**

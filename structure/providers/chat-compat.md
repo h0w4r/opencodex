@@ -1,4 +1,4 @@
-# Chat Provider Compatibility
+# Chat Provider Compatibility — [presupuesto por modelo](chat-token-budget.md)
 > Ampliación local: [catálogo, prompts externos y sincronización](../featherless-catalog.md).
 Native steering follows [the shared WebSocket contract](../transports/streaming-health.md#experimental-native-mid-turn-steering); this surface's defaults remain unchanged.
 

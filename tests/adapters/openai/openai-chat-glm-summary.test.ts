@@ -1,10 +1,13 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { buildOpenAIChatPassthroughRequest, createOpenAIChatAdapter } from "../../../src/adapters/openai-chat";
-import { protectGlmSummaryBudget } from "../../../src/adapters/openai-chat/summary-budget";
+import { protectGlmSummaryBudget, resolveMaxTokens } from "../../../src/adapters/openai-chat/summary-budget";
 import { chatCompletionsToResponsesBody } from "../../../src/chat/inbound";
 import { concreteComboRequestBody } from "../../../src/combos/request";
 import { parseRequest } from "../../../src/responses/parser";
 import type { OcxProviderConfig } from "../../../src/types";
+import { estimateInputTokens } from "../../../src/lib/request-input-estimate";
+import { routeModel } from "../../../src/router";
+import type { OcxConfig } from "../../../src/types";
 
 const model = "glm-5.3-flash";
 const provider: OcxProviderConfig = {
@@ -141,4 +144,70 @@ describe("GLM summary mitigation stays inside its boundary (#5953 review)", () =
     expect(mixedSmall.max_tokens).toBe(4096);
     expect(mixedSmall.max_completion_tokens).toBe(8192);
   });
+});
+
+// La reserva depende del destino y del contenido, nunca de un tope global de la CLI.
+describe("presupuesto dinámico por modelo Chat", () => {
+  const raw = { model: "small", messages: [{ role: "user", content: "entrada ".repeat(800) }], max_tokens: 32000 };
+  const policy: OcxProviderConfig = {
+    adapter: "openai-chat", baseUrl: "https://example.test/v1",
+    modelContextWindows: { small: 32768, large: 1048576, inputOnly: 131072 },
+    modelMaxInputTokens: { inputOnly: 8192 },
+    modelMaxOutputTokens: { large: 64000 },
+  };
+  test("las dos rutas usan el contexto del destino y descuentan la entrada", () => {
+    const parsed = parseRequest(chatCompletionsToResponsesBody(raw));
+    const expected = 32768 - Math.ceil(estimateInputTokens(parsed, "small", policy) * 1.25);
+    expect(expected).toBeGreaterThan(8192);
+    expect(resolveMaxTokens(policy, parsed)).toBe(expected);
+    const translated = JSON.parse(createOpenAIChatAdapter(policy).buildRequest(parsed).body);
+    const native = JSON.parse(buildOpenAIChatPassthroughRequest(policy, raw, "small", false).body);
+    expect(translated.max_tokens).toBe(expected);
+    expect(native.max_tokens).toBe(expected);
+  });
+  test("un modelo grande conserva una salida mayor sin heredar la ventana pequeña", () => {
+    const parsed = parseRequest(chatCompletionsToResponsesBody({ ...raw, model: "large", max_tokens: 120000 }));
+    expect(resolveMaxTokens(policy, parsed)).toBe(64000);
+    expect(resolveMaxTokens({ ...policy, modelMaxOutputTokens: {} }, parsed)).toBe(120000);
+  });
+  test("el cap exclusivo de entrada no se confunde con el contexto total", () => {
+    const parsed = parseRequest(chatCompletionsToResponsesBody({ ...raw, model: "inputOnly" }));
+    expect(resolveMaxTokens(policy, parsed)).toBe(32000);
+  });
+  test("sin metadatos conserva la solicitud y no inventa capacidades", () => {
+    const parsed = parseRequest(chatCompletionsToResponsesBody({ ...raw, model: "unknown", max_tokens: 90000 }));
+    expect(resolveMaxTokens(policy, parsed)).toBe(90000);
+    parsed.options.maxOutputTokens = undefined;
+    expect(resolveMaxTokens(policy, parsed)).toBeUndefined();
+  });
+  test("recalcula después de una edición de metadatos y respeta cotas menores del cliente", () => {
+    const parsed = parseRequest(chatCompletionsToResponsesBody({ ...raw, max_tokens: 500 }));
+    expect(resolveMaxTokens(policy, parsed)).toBe(500);
+    const updated = { ...policy, modelContextWindows: { small: 128000 } };
+    parsed.options.maxOutputTokens = 80000;
+    expect(resolveMaxTokens(updated, parsed)).toBe(80000);
+    expect(resolveMaxTokens(policy, parsed)).toBeLessThan(32768);
+  });
+});
+
+test("el presupuesto de resumen respeta la salida máxima declarada del destino", () => {
+  const capped = { ...provider, modelMaxOutputTokens: { [model]: 1024 } };
+  for (const body of bodies({}, capped)) expect(body.max_tokens).toBe(1024);
+});
+
+test("la ruta proyecta la ventana del catálogo y recalcula al cambiar de modelo", () => {
+  const config = { port: 0, defaultProvider: "demo", providers: {
+    demo: { adapter: "openai-chat", baseUrl: "https://example.test/v1", models: ["small", "large"] },
+  }, customModels: [
+    { id: "s", provider: "demo", modelId: "small", contextWindow: 32768 },
+    { id: "l", provider: "demo", modelId: "large", contextWindow: 262144 },
+  ] } as OcxConfig;
+  const small = routeModel(config, "demo/small");
+  const large = routeModel(config, "demo/large");
+  expect(small.provider.modelContextWindows?.small).toBe(32768);
+  expect(small.staticPolicy.model.contextWindow).toBe(32768);
+  expect(large.provider.modelContextWindows?.large).toBe(262144);
+  expect(config.providers.demo.modelContextWindows).toBeUndefined();
+  config.customModels![0].contextWindow = 65536;
+  expect(routeModel(config, "demo/small").provider.modelContextWindows?.small).toBe(65536);
 });

@@ -1,10 +1,47 @@
 import { modelRecordValue } from "../../reasoning-effort";
+import { estimateInputTokens } from "../../lib/request-input-estimate";
+import { chatCompletionsToResponsesBody } from "../../chat/inbound";
+import { parseRequest } from "../../responses/parser";
 import type { OcxParsedRequest, OcxProviderConfig } from "../../types";
 
 export function resolveMaxTokens(provider: OcxProviderConfig, parsed: OcxParsedRequest): number | undefined {
-  return parsed.options.maxOutputTokens
-    ?? modelRecordValue(provider.modelMaxOutputTokens, parsed.modelId)
+  const declaredOutput = modelRecordValue(provider.modelMaxOutputTokens, parsed.modelId)
     ?? provider.defaultMaxOutputTokens;
+  const requested = parsed.options.maxOutputTokens ?? declaredOutput;
+  if (requested === undefined) return undefined;
+  // Resolver en cada envío físico: un cambio de modelo/fallback no hereda el presupuesto anterior.
+  const positive = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n > 0;
+  let output = positive(declaredOutput) ? Math.min(requested, declaredOutput) : requested;
+  const window = modelRecordValue(provider.modelContextWindows, parsed.modelId) ?? provider.contextWindow;
+  if (positive(window)) {
+    // Entrada y salida comparten contexto. El cap de entrada es independiente y ya lo
+    // verifica admisión; nunca se confunde modelMaxInputTokens con la ventana total.
+    // El estimador común incluye el prompt externo ya aplicado y las herramientas.
+    // Margen proporcional de estimación, no un límite fijo de capacidad del modelo.
+    const inputReserve = Math.ceil(estimateInputTokens(parsed, parsed.modelId, provider) * 1.25);
+    const remaining = Math.max(1, Math.floor(window - inputReserve));
+    output = Math.min(output, remaining);
+  }
+  // Sin metadatos no se inventa una ventana ni un tope global de salida.
+  return output;
+}
+
+/** El Chat sin traducción usa las mismas cotas sin modificar mensajes ni campos ajenos. */
+export function applyNativeChatTokenBudget(body: Record<string, unknown>, provider: OcxProviderConfig, modelId: string): void {
+  const window = modelRecordValue(provider.modelContextWindows, modelId) ?? provider.contextWindow;
+  const ceiling = modelRecordValue(provider.modelMaxOutputTokens, modelId) ?? provider.defaultMaxOutputTokens;
+  if (window === undefined && ceiling === undefined) return;
+  let parsed: OcxParsedRequest | undefined;
+  try { parsed = parseRequest(chatCompletionsToResponsesBody({ ...body, model: modelId })); }
+  catch { /* Una forma nativa no traducible conserva su payload; sólo aplica la cota de salida declarada. */ }
+  for (const field of ["max_tokens", "max_completion_tokens"]) {
+    const requested = body[field];
+    if (typeof requested !== "number" || !Number.isFinite(requested) || requested <= 0) continue;
+    if (parsed) {
+      parsed.options.maxOutputTokens = requested;
+      body[field] = resolveMaxTokens(provider, parsed);
+    } else if (typeof ceiling === "number" && ceiling > 0) body[field] = Math.min(requested, ceiling);
+  }
 }
 
 function textContent(value: unknown): string | undefined {

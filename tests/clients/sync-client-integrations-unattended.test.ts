@@ -11,6 +11,7 @@ import { grokManagedBlockPresent, injectGrokConfig } from "../../src/grok/inject
 import { markSiblingStart, resetSiblingStartForTests } from "../../src/codex/sibling-start";
 import { syncEnabledClientIntegrations } from "../../src/server/management/config-routes";
 import type { OcxConfig } from "../../src/types";
+import type { CatalogModel } from "../../src/codex/catalog";
 import { removeTreeWithRetry } from "../helpers/remove-tree";
 
 const envKeys = ["HOME", "USERPROFILE", "OPENCODEX_HOME", "CLAUDE_CONFIG_DIR", "GROK_HOME", "OPENCODEX_CLAUDE_DESKTOP_CONFIG_DIR"] as const;
@@ -21,7 +22,7 @@ let config: OcxConfig;
 let previous: Partial<Record<typeof envKeys[number], string>>;
 let current: boolean;
 const unattended = { unattended: { isCurrent: () => current } };
-const models = [{ provider: "mock", id: "new-model", contextWindow: 123_000 }];
+const models: CatalogModel[] = [{ provider: "mock", id: "new-model", contextWindow: 123_000, reasoningEfforts: ["none", "high"] }];
 const refresh = mock<NonNullable<NonNullable<Parameters<typeof syncEnabledClientIntegrations>[2]>["refreshOwnedCatalogIntegrations"]>>(async () => []);
 const writer = mock<typeof writeDesktop3pConfig>((...args) => {
   // Production lock identity ignores HOME by design; exercise the real writer with its explicit seam.
@@ -162,6 +163,8 @@ describe("Desktop refresh-only retains ownership and selected bytes", () => {
       const written = JSON.parse(readFileSync(applied.path, "utf8"));
       expect(written.modelDiscoveryEnabled).toBe(mode !== "static");
       expect(Array.isArray(written.inferenceModels)).toBe(mode !== "discovery");
+      // También el refresco automático debe conservar el tope del proveedor.
+      if (mode !== "discovery") expect(written.inferenceModels.find((m: {labelOverride: string}) => m.labelOverride.includes("(mock)"))?.maxEffort).toBe("high");
       expect(loadConfig().claudeCode?.desktopProfile?.appliedFingerprint).not.toBe(applied.fingerprint);
       expect(writer.mock.calls[0]?.[7]).toBeUndefined(); expect(writer.mock.calls[0]?.[8]?.admit()).toBe(true);
     });

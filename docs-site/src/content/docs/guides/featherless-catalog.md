@@ -13,7 +13,7 @@ global compartido. Para reconciliar selecciones existentes sin sondear esfuerzos
 `bun scripts/sync-featherless-reasoning.ts --limits-only --apply --report .tmp/limites.json`.
 Una consulta fallida conserva los datos anteriores y queda registrada.
 
-Claude Desktop recibe el `maxEffort` oficial derivado de la escala declarada.
+Claude Desktop recibe el `maxEffort` oficial en apply, CLI y refrescos automáticos, sin perder la escala canónica.
 Ese campo sólo oculta niveles superiores: no puede expresar huecos como
 `low/high/max`, ni un selector exclusivamente ON/OFF. El catálogo del gateway
 sí conserva la escala exacta para clientes compatibles, como OMP. Un selector

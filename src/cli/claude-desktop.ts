@@ -529,11 +529,8 @@ export async function applyProfile(
   if (!claudeDesktopIntegrationEnabledNow()) {
     return { ok: false, path: "", reason: "desired_state_changed" };
   }
-  const routed = filterCatalogVisibleModels(allModels, config).map(model => ({
-    provider: model.provider,
-    id: model.id,
-    contextWindow: model.contextWindow,
-  }));
+  // Mantener la fila canónica: reducirla a identidad/contexto perdía esfuerzos y futuras capacidades.
+  const routed = filterCatalogVisibleModels(allModels, config);
   const result = writeDesktop3pConfig(
     config.port ?? 10100,
     [...desktopVisibleNativeSlugs(config)],

@@ -283,8 +283,8 @@ export async function syncEnabledClientIntegrations(
         if (stale()) return;
         if (claudeDesktopIntegrationEnabled(latest) && resolveClaudeDesktopMode(latest, observeClaudeDesktopMode(latest)) !== "first-party"
           && (!unattended || !!latest.claudeCode?.desktopProfile?.appliedFingerprint)) {
-          const routed = filterCatalogVisibleModels(models, latest)
-            .map(model => ({ provider: model.provider, id: model.id, contextWindow: model.contextWindow }));
+          // No reducir la fila antes del escritor: perdería metadata de esfuerzo.
+          const routed = filterCatalogVisibleModels(models, latest);
           const writtenProfile = latest.claudeCode?.desktopProfile;
           const markerBaseline = captureDesktopAppliedMarker(writtenProfile);
           // Keep the attended writer's argument count unchanged, including its lock test seam.

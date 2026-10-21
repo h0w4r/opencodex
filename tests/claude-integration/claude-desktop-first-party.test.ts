@@ -171,13 +171,21 @@ test("first-party apply refuses foreign proxy env and disabled intercept", () =>
 });
 
 test("POST /api/claude-desktop/apply defaults to gateway; first-party is explicit and carries the account-risk notice", async () => {
-  const byDefault = await dispatch("/api/claude-desktop/apply", { method: "POST" });
+  // Recorrer API -> CLI -> archivo, no sólo el generador que sí conservaba los niveles.
+  const withEfforts = config({ defaultProvider: "test", providers: { test: {
+    adapter: "openai-chat", baseUrl: "http://127.0.0.1:1/v1", allowPrivateNetwork: true, apiKey: "test-key",
+    models: ["effort-sample"], liveModels: false, modelReasoningEfforts: { "effort-sample": ["none", "high"] },
+  } } });
+  saveConfigPreservingClaudeCode(withEfforts);
+  const byDefault = await dispatch("/api/claude-desktop/apply", { method: "POST" }, withEfforts);
   expectStatus(byDefault, 200);
   expect(byDefault.body.riskWarning).toBeUndefined();
   expect(existsSync(join(claudeDir, "settings.json"))).toBe(false);
   const afterDefault = JSON.parse(readFileSync(join(root, "config.json"), "utf8")) as OcxConfig;
   expect(afterDefault.claudeCode?.desktopMode).toBe("gateway");
   expect(afterDefault.claudeCode?.desktopProfile?.appliedFingerprint).toBeTruthy();
+  const written = JSON.parse(readFileSync(inspectDesktop3pConfigLibrary().selectedProfilePath!, "utf8"));
+  expect(written.inferenceModels.find((m: {labelOverride: string}) => m.labelOverride.includes("(test)"))?.maxEffort).toBe("high");
   const gatewayStatus = await dispatch("/api/claude-desktop/status", {}, afterDefault);
   expect(gatewayStatus.body.mode).toBe("gateway");
   expect(gatewayStatus.body.riskWarning).toBeNull();

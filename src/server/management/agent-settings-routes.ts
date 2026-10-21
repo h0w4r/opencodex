@@ -294,7 +294,8 @@ export async function handleAgentSettingsRoutes(ctx: ManagementContext): Promise
           appliedFingerprint: current.claudeCode.desktopProfile.appliedFingerprint ?? null,
         }).kind;
         if (["not_installed", "no_owned_state", "foreign", "unsafe", "broken"].includes(afterKind)) return undefined;
-        const routed = filterCatalogVisibleModels(allModels, current).map(m => ({ provider: m.provider, id: m.id, contextWindow: m.contextWindow }));
+        // Conservar capacidades canónicas, incluidos los niveles de esfuerzo por modelo.
+        const routed = filterCatalogVisibleModels(allModels, current);
         const writtenProfile = current.claudeCode.desktopProfile;
         const markerBaseline = captureDesktopAppliedMarker(writtenProfile);
         const result = (deps.writeDesktop3pConfig ?? writeDesktop3pConfig)(
@@ -1187,7 +1188,8 @@ export async function handleAgentSettingsRoutes(ctx: ManagementContext): Promise
         .filter(model => model.available && !model.route.startsWith("native/"))
         .map(model => {
           const slash = model.route.indexOf("/");
-          return { provider: model.route.slice(0, slash), id: model.route.slice(slash + 1), contextWindow: model.contextWindow };
+          return { provider: model.route.slice(0, slash), id: model.route.slice(slash + 1), contextWindow: model.contextWindow,
+            reasoningEfforts: model.reasoningEfforts };
         });
       const { runPickerTransition } = await import("./claude-desktop-picker-routes");
       const outcome = await runPickerTransition(config, async ops => {

@@ -814,9 +814,8 @@ async function handleClaudeDesktopToggle(ctx: ManagementContext): Promise<Respon
         }
         // Picker mode belongs to first-party: stop terminating claude.ai before the gateway lands.
         const pickerOff = await ops.disableLocked({ persist: false });
-        const routed = filterCatalogVisibleModels(fetched, latest).map(model => ({
-          provider: model.provider, id: model.id, contextWindow: model.contextWindow,
-        }));
+        // El writer necesita la fila completa, no sólo identidad y ventana.
+        const routed = filterCatalogVisibleModels(fetched, latest);
         const runtime = (ctx.deps.readRuntimePort ?? readRuntimePort)(process.pid);
         const result = (ctx.deps.writeDesktop3pConfig ?? writeDesktop3pConfig)(
           runtime?.port ?? latest.port,

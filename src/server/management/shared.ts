@@ -400,6 +400,8 @@ export async function buildClaudeDesktopState(config: OcxConfig, stored?: OcxCla
   }
   const available = new Set(profileModels.map(model => model.route));
   const modelByRoute = new Map(profileModels.map(model => [model.route, model]));
+  // El DTO de gestión también alimenta la escritura; no degradarlo a un booleano.
+  const reasoningByRoute = new Map(routed.map(model => [`${model.provider}/${model.id}`, model.reasoningEfforts]));
   // Effort support: routed models with a non-empty reasoningEfforts ladder support effort;
   // native models always support it (Anthropic native effort).
   const effortByRoute = new Map<string, boolean>();
@@ -415,6 +417,7 @@ export async function buildClaudeDesktopState(config: OcxConfig, stored?: OcxCla
     available: available.has(route),
     ...(modelByRoute.get(route)?.contextWindow ? { contextWindow: modelByRoute.get(route)!.contextWindow } : {}),
     effortSupported: effortByRoute.get(route) ?? false,
+    ...(reasoningByRoute.get(route) !== undefined ? { reasoningEfforts: [...reasoningByRoute.get(route)!] } : {}),
     // Read-only view of the 1M capability the written Desktop config already emits,
     // derived from the SAME predicate so the dashboard chip can never disagree.
     supports1m: routeSupportsOneMillion(route, modelByRoute.get(route)?.contextWindow),

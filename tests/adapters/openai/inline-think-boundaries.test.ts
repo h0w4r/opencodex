@@ -20,6 +20,25 @@ function split(chunks: string[], interleaved = true) {
 }
 
 describe("inline thinking format boundaries", () => {
+  test("el prefijo implícito conserva Unicode y espacios en cada frontera", () => {
+    const input = " \nborrador 😀</think>\n respuesta";
+    for (let cut = 0; cut <= input.length; cut++) {
+      const budget = createTestTranslatorBudget();
+      const parser = new InlineThinkTagParser(budget, { interleaved: true, recoverUnmatchedClose: true });
+      const events = [...parser.feed(input.slice(0, cut)), ...parser.feed(input.slice(cut)), ...parser.flush()];
+      expect(projection(events)).toEqual({ reasoning: " \nborrador 😀", answer: "\n respuesta" });
+      parser.dispose();
+      expect(budget.snapshot().currentBytes).toBe(0);
+    }
+  });
+  test("el prefijo indeciso respeta el presupuesto y libera memoria al abortar", () => {
+    const budget = createTestTranslatorBudget({ maxTurnBytes: 128 });
+    const parser = new InlineThinkTagParser(budget, { interleaved: true, recoverUnmatchedClose: true });
+    parser.feed("a".repeat(64));
+    expect(() => parser.feed("b".repeat(256))).toThrow();
+    parser.dispose();
+    expect(budget.snapshot().currentBytes).toBe(0);
+  });
   test("leading and first-answer whitespace survives every chunk boundary", () => {
     const input = " \n<think>why😀</think>\n    code();<reasoning>next</reasoning>  tail";
     const expected = { answer: " \n\n    code();  tail", reasoning: "why😀next" };

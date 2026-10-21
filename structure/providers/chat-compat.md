@@ -76,8 +76,8 @@ remains answer text, including indentation and blank lines. Kiro uses single-blo
 retains its existing first-answer normalization.
 `src/adapters/inline-think-tags.ts` owns the parser and is shared with the Kiro adapter,
 which consumes it in single-block mode with its existing leading/first-answer normalization.
-Regression coverage is in `tests/adapters/openai/openai-chat-inline-think-tags.test.ts` and
-`tests/adapters/openai/inline-think-boundaries.test.ts`.
+Regressions: `tests/adapters/openai/openai-chat-inline-think-tags.test.ts`, `tests/adapters/openai/inline-think-boundaries.test.ts`.
+Featherless recupera cierres implícitos sólo con prefijo acreditado por su formatter; [contrato](../featherless-catalog.md#controles-de-razonamiento-sincronizados).
 
 Google tool-declaration narrowing is observed by the Google final compiler, not this shared Chat
 compatibility layer. Its endpoint profile and privacy boundary are specified in the

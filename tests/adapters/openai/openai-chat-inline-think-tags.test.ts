@@ -53,6 +53,41 @@ function joined(events: AdapterEvent[], type: "text_delta" | "reasoning_raw_delt
 }
 
 describe("openai-chat inline <think> recovery", () => {
+  // La plantilla de Featherless puede aportar la apertura fuera del contenido devuelto.
+  for (const chunks of [["borrador</think>respuesta"], ["bor", "rador</thi", "nk>res", "puesta"]]) {
+    test(`recupera el cierre implícito de Featherless (${chunks.length} fragmentos)`, async () => {
+      const config = { ...provider(true), baseUrl: "https://api.featherless.ai/v1" };
+      const adapter = withTestTranslatorBudget(createOpenAIChatAdapterProduction(config));
+      adapter.buildRequest(parsed());
+      const events = await collect(adapter.parseStream(sse(...chunks)));
+      expect(joined(events, "reasoning_raw_delta")).toBe("borrador");
+      expect(joined(events, "text_delta")).toBe("respuesta");
+      const buffered = await adapter.parseResponse(Response.json({ choices: [{ message: { content: chunks.join("") }, finish_reason: "stop" }] }));
+      expect(joined(buffered, "reasoning_raw_delta")).toBe("borrador");
+      expect(joined(buffered, "text_delta")).toBe("respuesta");
+    });
+  }
+
+  test("un cierre residual no duplica el texto tras razonamiento nativo", async () => {
+    const adapter = withTestTranslatorBudget(createOpenAIChatAdapterProduction({ ...provider(true), baseUrl: "https://api.featherless.ai/v1" }));
+    adapter.buildRequest(parsed());
+    const stream = new Response('data: {"choices":[{"delta":{"reasoning":"nativo;"}}]}\n\n'
+      + 'data: {"choices":[{"delta":{"content":"borrador</think>respuesta"}}]}\n\n'
+      + 'data: [DONE]\n\n');
+    const events = await collect(adapter.parseStream(stream));
+    expect(joined(events, "reasoning_raw_delta")).toBe("nativo;borrador");
+    expect(joined(events, "text_delta")).toBe("respuesta");
+  });
+
+  test.each([true, false])("sin cierre se conserva el texto íntegro (opt-in %s)", async optIn => {
+    const adapter = withTestTranslatorBudget(createOpenAIChatAdapterProduction({ ...provider(optIn), baseUrl: "https://api.featherless.ai/v1" }));
+    adapter.buildRequest(parsed());
+    const text = "  respuesta sin delimitadores 😀\n";
+    const events = await collect(adapter.parseStream(sse(...text)));
+    expect(joined(events, "text_delta")).toBe(text);
+    expect(joined(events, "reasoning_raw_delta")).toBe("");
+  });
+
   test.each(["none", undefined])("inline reasoning crosses display and next-turn replay with summary %s", async summary => {
     const request = parseRequest({ model: MODEL, input: [], reasoning: { effort: "high", summary } });
     const events = await collect(adapterFor(true).parseStream(sse("<think>replay me</think>answer")));

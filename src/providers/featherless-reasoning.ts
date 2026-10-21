@@ -21,6 +21,8 @@ export interface FeatherlessReasoningProfile {
     budgetHighHash?: string;
     statuses: number[];
     effortHashes?: Record<string, string>;
+    /** Sólo metadatos del delimitador; nunca se persiste el prompt formateado. */
+    thinkingPrefill?: boolean;
   };
 }
 
@@ -128,6 +130,7 @@ export async function probeFeatherlessReasoningProfile(
     omittedHash: hash(omitted.prompt),
     disabledHash: hash(disabled.prompt),
     enabledHash: hash(enabled.prompt),
+    thinkingPrefill: /<(?:think|thinking|reasoning)>\s*$/.test(enabled.prompt ?? ""),
     statuses: [omitted.status, disabled.status, enabled.status],
   };
   const toggleWorks = disabled.prompt !== undefined
@@ -258,6 +261,10 @@ export function applyFeatherlessReasoningProfile(
       : profile.kind === "effort" ? Object.fromEntries(profile.reasoningEfforts.map(effort => [effort, effort === "none" ? "disabled" : `template:${effort}`])) : undefined;
   provider.modelReasoningEffortMap = setRecord(provider.modelReasoningEffortMap, modelId, wireMap);
   provider.thinkingBudgetModels = setMembership(provider.thinkingBudgetModels, modelId, profile.kind === "budget");
+  // No inferirlo del nombre del modelo: la plantilla real debe terminar con una apertura.
+  if (profile.evidence.thinkingPrefill !== undefined) {
+    provider.inlineThinkTagModels = setMembership(provider.inlineThinkTagModels, modelId, profile.evidence.thinkingPrefill);
+  }
   provider.preserveReasoningContentModels = setMembership(
     provider.preserveReasoningContentModels,
     modelId,

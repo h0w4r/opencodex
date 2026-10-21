@@ -113,3 +113,13 @@ La búsqueda facetada utiliza la API pública del sitio de Featherless; no tiene
 la misma garantía de estabilidad que la API documentada de inferencia. Ante un
 fallo de red o un contrato desconocido se informa del error: no se sustituye
 silenciosamente el catálogo por una lista parcial ni por respuestas simuladas.
+
+## Presentación de pensamiento en clientes externos
+
+OpenCodex separa pensamiento y respuesta en el transporte compartido de Claude
+Code, Claude Desktop y clientes Chat/Responses. Cuando el formatter de Featherless
+confirma que la plantilla prefija `<think>`, también se recupera un cierre sin
+apertura visible. Así no aparecen `</think>` ni el borrador en la respuesta final.
+No se eliminan frases repetidas por heurísticas. Un texto sin delimitadores se
+conserva íntegramente; los modelos no declarados mantienen su respuesta original.
+Las firmas y bloques nativos de Anthropic siguen usando su canal independiente.

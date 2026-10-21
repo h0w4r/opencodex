@@ -27,6 +27,19 @@ function probeFetch(options: { toggle: boolean; budget: boolean }): typeof fetch
 }
 
 describe("Featherless reasoning discovery", () => {
+  test("el prefijo real de la plantilla activa la recuperación sin depender del nombre", async () => {
+    const profile = await probeFeatherlessReasoningProfile("example/prefill", "secret", {
+      fetch: (async (_input, init) => {
+        const kwargs = JSON.parse(String(init?.body)).chat_template_kwargs;
+        return responseForPrompt(kwargs?.enable_thinking === false ? "assistant\n" : "assistant\n<think>\n");
+      }) as typeof fetch,
+    });
+    expect(profile.evidence.thinkingPrefill).toBe(true);
+    const provider: OcxProviderConfig = { adapter: "openai-chat", baseUrl: "https://api.featherless.ai/v1" };
+    applyFeatherlessReasoningProfile(provider, { id: "prefill", provider: "featherless", modelId: "example/prefill" }, profile);
+    expect(provider.inlineThinkTagModels).toContain("example/prefill");
+    expect(JSON.stringify(profile)).not.toContain("assistant");
+  });
   test("publishes only a binary ladder when the toggle works but the budget is ignored", async () => {
     const profile = await probeFeatherlessReasoningProfile("Qwen/Qwen3.8-27B", "secret", {
       fetch: probeFetch({ toggle: true, budget: false }),

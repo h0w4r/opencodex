@@ -161,6 +161,15 @@ lista de modelos permitidos ni sustituye la política del catálogo.
 
 ## Controles de razonamiento sincronizados
 
+La evidencia del formatter incluye si la plantilla acaba en una apertura de pensamiento.
+Ese dato habilita la recuperación de delimitadores implícitos descrita en
+[compatibilidad Chat](providers/chat-compat.md#inline-think-tag-recovery), sin guardar prompts.
+Un cierre anterior a cualquier apertura en `content` confirma un bloque implícito:
+el prefijo pasa a razonamiento, el sufijo permanece como respuesta, sin deduplicar frases.
+Esto compone con `reasoning` nativo. Sin cierre se conserva el texto al terminar.
+El prefijo indeciso usa fragmentos con presupuesto de memoria y exploración incremental;
+fuera de Featherless no cambia el contrato.
+
 `src/providers/featherless-reasoning.ts` distingue toggle, presupuesto, esfuerzo
 nominal y controles fijos/desconocidos. Un 200 que ignora una opción no acredita
 soporte. La ausencia de niveles seleccionables no elimina reasoning_content

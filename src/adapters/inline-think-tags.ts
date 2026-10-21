@@ -3,7 +3,7 @@ import { modelInList } from "../types";
 import type { TranslatorBudget } from "../lib/translator-budget";
 
 type ThinkingTag = "<thinking>" | "<think>" | "<reasoning>";
-type ParserState = "pre" | "thinking" | "scanning" | "streaming";
+type ParserState = "pre" | "undecided" | "thinking" | "scanning" | "streaming";
 
 const OPEN_TAGS: ThinkingTag[] = ["<thinking>", "<think>", "<reasoning>"];
 const MAX_OPEN_TAG = Math.max(...OPEN_TAGS.map(t => t.length));
@@ -25,6 +25,8 @@ function surrogateSafeCut(text: string, cut: number): number {
 }
 
 export interface InlineThinkTagOptions {
+  /** Recupera un cierre cuyo inicio fue prefijado por la plantilla del servidor. */
+  recoverUnmatchedClose?: boolean;
   /**
    * Keep scanning for further think blocks after the first one closes. Kiro emits a single
    * leading block, so it leaves this off and streams the rest verbatim. MiniMax M-series
@@ -48,9 +50,11 @@ export class InlineThinkTagParser {
   private closeTag = "";
 
   private readonly interleaved: boolean;
+  private readonly recoverUnmatchedClose: boolean;
 
   constructor(private readonly budget?: TranslatorBudget, options?: InlineThinkTagOptions) {
     this.interleaved = options?.interleaved === true;
+    this.recoverUnmatchedClose = options?.recoverUnmatchedClose === true;
   }
 
   private replaceCarry(field: "preBuffer" | "thinkingBuffer", next: string): void {
@@ -115,8 +119,17 @@ export class InlineThinkTagParser {
         this.replaceCarry("preBuffer", input);
         return [];
       }
+      if (this.recoverUnmatchedClose) {
+        this.state = "undecided";
+        return this.drainUndecided(this.finishPreWhitespace(true) + input);
+      }
       this.state = "streaming";
       return [{ type: "text_delta", text: this.finishPreWhitespace(true) + input }];
+    }
+    if (this.state === "undecided") {
+      const pending = this.preBuffer + text;
+      this.replaceCarry("preBuffer", "");
+      return this.drainUndecided(pending);
     }
     if (this.state === "thinking") {
       input = this.thinkingBuffer + text;
@@ -151,6 +164,35 @@ export class InlineThinkTagParser {
     this.replaceCarry("thinkingBuffer", "");
     this.closeTag = "";
     this.state = "streaming";
+  }
+
+  /**
+   * Featherless puede prefijar <think> y emitir sólo su cierre en content, incluso
+   * después de reasoning nativo. No se adivina por el texto ni se deduplican frases:
+   * sólo un cierre anterior a cualquier apertura confirma el canal implícito.
+   * Sin delimitador se conserva íntegro el texto al finalizar, con memoria contabilizada.
+   */
+  private drainUndecided(input: string): AdapterEvent[] {
+    const tags = OPEN_TAGS.flatMap(tag => [tag, closeTagFor(tag)]);
+    const first = tags.map(tag => ({ tag, index: input.indexOf(tag) }))
+      .filter(match => match.index >= 0).sort((a, b) => a.index - b.index)[0];
+    if (!first) {
+      // Retener fragmentos, no recopiarlos ni reescanear el prefijo entero por delta.
+      const cut = surrogateSafeCut(input, input.length - MAX_CLOSE_TAG);
+      if (cut > 0) this.appendPreWhitespace(input.slice(0, cut));
+      this.replaceCarry("preBuffer", input.slice(cut));
+      return [];
+    }
+    if (!first.tag.startsWith("</")) {
+      // Una apertura tras prosa ordinaria puede ser un ejemplo literal: no reinterpretarla.
+      this.state = "streaming";
+      return [{ type: "text_delta", text: this.finishPreWhitespace(true) + input }];
+    }
+    const prefix = this.finishPreWhitespace(true) + input.slice(0, first.index);
+    const events: AdapterEvent[] = prefix
+      ? [{ type: "reasoning_raw_delta", text: prefix }] : [];
+    this.state = "scanning";
+    return this.drainChunk(input, first.index + first.tag.length, events);
   }
 
   private drainChunk(input: string, start: number, events: AdapterEvent[]): AdapterEvent[] {
@@ -224,9 +266,10 @@ export function createInlineThinkContentSplitter(
   models: string[] | undefined,
   modelId: string | undefined,
   budget?: TranslatorBudget,
+  options?: InlineThinkTagOptions,
 ): InlineThinkContentSplitter {
   if (!modelInList(models, modelId ?? "")) return PASSTHROUGH;
-  const parser = new InlineThinkTagParser(budget, { interleaved: true });
+  const parser = new InlineThinkTagParser(budget, { ...options, interleaved: true });
   return {
     // An empty content delta stays an empty delta: it is a wire signal, not thinking.
     feed: text => (text.length === 0 ? [{ type: "text_delta", text }] : parser.feed(text)),

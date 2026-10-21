@@ -2,6 +2,7 @@ import { diagnoseInvalidToolCalls, isRecord, type InvalidToolCallDiagnostic } fr
 import { TranslatorBudgetExceededError, type TranslatorBudget } from "../../lib/translator-budget";
 import type { AdapterEvent, OcxProviderConfig, OcxUsage } from "../../types";
 import { createInlineThinkContentSplitter } from "../inline-think-tags";
+import { isFeatherlessCatalogProvider } from "../../providers/featherless-catalog";
 
 export function stopReasonFor(finishReason: unknown): "max_tokens" | "content_filter" | undefined {
   return finishReason === "length"
@@ -49,14 +50,17 @@ export function chatContentEvents(content: unknown, baseUrl: string, usage?: Ocx
 
 /** Keep adjacent text together; typed reasoning flushes and resets inline-tag parsing. */
 export function createChatContentSplitter(provider: OcxProviderConfig, modelId: string | undefined, budget: TranslatorBudget) {
-  let splitter = createInlineThinkContentSplitter(provider.inlineThinkTagModels, modelId, budget);
+  // La lista sigue siendo opt-in; el formatter de Featherless acredita el prefijo implícito.
+  const create = () => createInlineThinkContentSplitter(provider.inlineThinkTagModels, modelId, budget,
+    { recoverUnmatchedClose: isFeatherlessCatalogProvider(provider) });
+  let splitter = create();
   return {
     feed(event: ChatContentEvent): AdapterEvent[] {
       if (event.type === "error") return [event];
       if (event.type === "text_delta") return splitter.feed(event.text);
       const pending = splitter.flush();
       splitter.dispose();
-      splitter = createInlineThinkContentSplitter(provider.inlineThinkTagModels, modelId, budget);
+      splitter = create();
       return [...pending, event];
     },
     flush: () => splitter.flush(),

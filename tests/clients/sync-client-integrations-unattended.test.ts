@@ -75,12 +75,13 @@ afterEach(() => {
 });
 
 describe("unattended native and file client admission", () => {
-  test("no Desktop marker skips discovery, and file clients exclude Cline with a fresh admit", async () => {
+  test("no Desktop marker skips discovery and delegates registry clients with a fresh admit", async () => {
     const fetch = mock(async () => models);
     expect(await syncEnabledClientIntegrations(12345, config, deps(fetch), unattended)).toEqual([]);
     expect(fetch).not.toHaveBeenCalled(); expect(writer).not.toHaveBeenCalled();
     const args = refresh.mock.calls[0]!;
-    expect(args[1]).toEqual(["mcode", "pi", "aside", "raycast", "omo", "commandcode", "droid", "opencode", "kilo", "qoder"]);
+    // La autoridad actual es el registro, no una lista duplicada y desactualizada del caller.
+    expect(args[1]).toBeUndefined(); expect(args[0]).toMatchObject({ config, port: 12345 });
     expect(args[2]?.refreshOnly).toBe(true); expect(args[2]?.admit?.()).toBe(true);
     config.runtimeRole = "hub"; persist(); expect(args[2]?.admit?.()).toBe(false);
     config.unauthenticatedLoopbackListener = { enabled: true, port: 12346 }; persist();
@@ -132,13 +133,13 @@ describe("unattended native and file client admission", () => {
     });
   }
 
-  test("attended sync still first-applies Desktop in static mode and passes Cline without refresh options", async () => {
+  test("attended sync still first-applies Desktop in static mode and uses registry defaults without refresh options", async () => {
     const results = await syncEnabledClientIntegrations(12345, config, deps());
     expect(results).toContainEqual({ client: "claude-desktop", ok: true, changed: true });
     expect(writer.mock.calls[0]).toHaveLength(7);
     const selected = metadata().appliedId;
     expect(JSON.parse(readFileSync(join(library, `${selected}.json`), "utf8")).modelDiscoveryEnabled).toBe(false);
-    expect(refresh.mock.calls[0]).toHaveLength(2); expect(refresh.mock.calls[0]?.[1]).toContain("cline");
+    expect(refresh.mock.calls[0]).toHaveLength(2); expect(refresh.mock.calls[0]?.[1]).toBeUndefined();
   });
 
   test("attended Grok still first-enrolls without a managed block", async () => {

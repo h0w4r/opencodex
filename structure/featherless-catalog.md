@@ -8,7 +8,9 @@ el inicio de sesión, los prompts ni el enrutamiento de los demás proveedores.
 
 `src/providers/featherless-model-limits.ts` consulta el detalle oficial autenticado
 del modelo seleccionado y lleva `context_length` y `max_completion_tokens` a los
-mapas físicos por modelo. La selección y el sincronizador comparten esa lectura;
+mapas físicos por modelo. La selección y el sincronizador comparten esa lectura.
+El gate de herramientas usa OFF sólo cuando la selección lo declara; no acredita
+razonamiento con ese smoke y registra finish_reason si no consume el resultado.
 `--limits-only` actualiza sólo límites. Un fallo conserva lo conocido sin inventar
 un tope global. `tests/providers/featherless-provider.test.ts` cubre el contrato.
 

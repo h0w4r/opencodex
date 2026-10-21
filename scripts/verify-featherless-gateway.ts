@@ -71,11 +71,14 @@ const artifact = join(home, "tool-validation.txt");
 writeFileSync(artifact, marker);
 const messages: Array<Record<string, unknown>> = [{ role: "user", content: "Lee el artefacto de validación con read_validation_artifact y devuelve exactamente su contenido. No lo adivines." }];
 const tools = [{ type: "function", function: { name: "read_validation_artifact", description: "Lee el archivo local de validación y devuelve su contenido actual.", parameters: { type: "object", properties: {}, additionalProperties: false } } }];
+// Este gate acredita lectura/consumo, no razonamiento: apagarlo sólo si la selección lo declara.
+// Las trayectorias de razonamiento se prueban por separado; evita gastar el smoke en pensar sin responder.
+const toolReasoning = savedModel.reasoningEfforts?.includes("none") ? { reasoning: { enabled: false } } : {};
 async function chat(turns: Array<Record<string, unknown>>, toolChoice: string) {
   const response = await fetch(`${base}/v1/chat/completions`, { method: "POST", headers,
-    body: JSON.stringify({ model: routedSlug("featherless", model), messages: turns, tools, tool_choice: toolChoice, max_tokens: 2048, stream: false }) });
+    body: JSON.stringify({ model: routedSlug("featherless", model), messages: turns, tools, tool_choice: toolChoice, ...toolReasoning, max_tokens: 2048, stream: false }) });
   if (!response.ok) throw new Error(`Circuito real de herramientas: HTTP ${response.status}`);
-  return await response.json() as { choices?: Array<{ message?: Record<string, unknown> & { content?: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }> } }>; usage?: unknown };
+  return await response.json() as { choices?: Array<{ finish_reason?: string; message?: Record<string, unknown> & { content?: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }> } }>; usage?: unknown };
 }
 const first = await chat(messages, "required");
 const assistant = first.choices?.[0]?.message;
@@ -87,7 +90,7 @@ for (const call of assistant.tool_calls) {
   messages.push({ role: "tool", tool_call_id: call.id, content: readFileSync(artifact, "utf8") });
 }
 const second = await chat(messages, "none");
-if (!second.choices?.[0]?.message?.content?.includes(marker)) throw new Error("El modelo no incorporó el resultado real de la herramienta.");
+if (!second.choices?.[0]?.message?.content?.includes(marker)) throw new Error(`El modelo no incorporó el resultado real de la herramienta (finish_reason=${second.choices?.[0]?.finish_reason ?? "unknown"}).`);
 results.toolCalling = { model, calls: assistant.tool_calls.length, tool: "read_validation_artifact", persistedRead: true, resultMatched: true, firstUsage: first.usage, secondUsage: second.usage };
 const evidence = resolve(process.env.FEATHERLESS_VERIFY_EVIDENCE ?? ".tmp/featherless-evidence/gateway.json");
 mkdirSync(resolve(evidence, ".."), { recursive: true });

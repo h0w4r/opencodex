@@ -12,6 +12,8 @@ oficial del modelo. El gateway aplica esos límites por destino, sin un máximo
 global compartido. Para reconciliar selecciones existentes sin sondear esfuerzos:
 `bun scripts/sync-featherless-reasoning.ts --limits-only --apply --report .tmp/limites.json`.
 Una consulta fallida conserva los datos anteriores y queda registrada.
+El gate corto de herramientas usa razonamiento OFF únicamente si el modelo lo
+declara; no se presenta ese recorrido como prueba de razonamiento activado.
 
 Claude Desktop recibe el `maxEffort` oficial en apply, CLI y refrescos automáticos, sin perder la escala canónica.
 Ese campo sólo oculta niveles superiores: no puede expresar huecos como

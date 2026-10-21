@@ -6,6 +6,12 @@ el inicio de sesión, los prompts ni el enrutamiento de los demás proveedores.
 
 ## Fuentes y contratos
 
+`src/providers/featherless-model-limits.ts` consulta el detalle oficial autenticado
+del modelo seleccionado y lleva `context_length` y `max_completion_tokens` a los
+mapas físicos por modelo. La selección y el sincronizador comparten esa lectura;
+`--limits-only` actualiza sólo límites. Un fallo conserva lo conocido sin inventar
+un tope global. `tests/providers/featherless-provider.test.ts` cubre el contrato.
+
 - `src/providers/featherless-catalog.ts` consulta exclusivamente
   `https://api.featherless.ai/feather/search/models`, el endpoint público usado
   por el explorador web de Featherless, comprobado el 20/09/2026.

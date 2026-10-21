@@ -41,6 +41,8 @@ export interface Desktop3pModelEntry {
   supports1m?: true;
   /** When true, Desktop selects the 1M variant by default (official schema, Luna research 260722). */
   prefer1m?: true;
+  /** Tope oficial de Desktop; no representa los huecos de una escala discontinua. */
+  maxEffort?: "low" | "medium" | "high" | "xhigh" | "max";
 }
 
 /**
@@ -56,6 +58,13 @@ export interface Desktop3pRoutedModel {
   id: string;
   /** Authoritative context window (CatalogModel.contextWindow); optional. */
   contextWindow?: number;
+  reasoningEfforts?: readonly string[];
+}
+
+/** Deriva sólo el mayor nivel declarado que la configuración oficial puede expresar. */
+export function desktop3pMaxEffort(efforts?: readonly string[]): Desktop3pModelEntry["maxEffort"] {
+  const levels = ["low", "medium", "high", "xhigh", "max"] as const;
+  return levels.findLast(level => efforts?.includes(level));
 }
 
 /**
@@ -188,10 +197,11 @@ function collectDesktop3pModels(
     .map(model => model.id));
 
   if (profile) {
-    const profileModels = candidates.map(({ provider, id, contextWindow }) => ({
+    const profileModels = candidates.map(({ provider, id, contextWindow, reasoningEfforts }) => ({
       route: `${provider}/${id}`,
       label: `${displayModelId(id)} (${provider})`,
       ...(typeof contextWindow === "number" ? { contextWindow } : {}),
+      ...(desktop3pMaxEffort(reasoningEfforts) ? { maxEffort: desktop3pMaxEffort(reasoningEfforts) } : {}),
     } satisfies DesktopProfileModel));
     const reconciled = reconcileDesktopProfile(profile, profileModels);
     const rendered = renderDesktopProfile(reconciled, profileModels);
@@ -221,6 +231,7 @@ function collectDesktop3pModels(
         name: model.name,
         labelOverride: model.label,
         anthropicFamilyTier: model.family,
+        ...(model.maxEffort ? { maxEffort: model.maxEffort } : {}),
         ...(model.isFamilyDefault ? { isFamilyDefault: true } : {}),
         ...(model.supports1m ? { supports1m: true, prefer1m: true } : {}),
       });
@@ -253,9 +264,10 @@ function collectDesktop3pModels(
 
   const aliasesByRoute = new Map<string, string>();
   const emittedNames = new Set<string>();
-  for (const { provider, id, contextWindow } of candidates) {
+  for (const { provider, id, contextWindow, reasoningEfforts } of candidates) {
     const route = `${provider}/${id}`;
     const alias = desktop3pAlias(provider, id);
+    const maxEffort = desktop3pMaxEffort(reasoningEfforts);
     const supports1m = claudeSurfaceSupportsOneMillion(provider, id, contextWindow)
       ? { supports1m: true as const }
       : {};
@@ -268,6 +280,7 @@ function collectDesktop3pModels(
         name: alias,
         labelOverride: `${displayModelId(id)} (${provider})`,
         anthropicFamilyTier: "opus",
+        ...(maxEffort ? { maxEffort } : {}),
         ...supports1m,
         ...(supports1m.supports1m ? { prefer1m: true as const } : {}),
       });
@@ -297,6 +310,7 @@ function collectDesktop3pModels(
       name: alias,
       labelOverride: `${displayModelId(id)} (${provider})`,
       anthropicFamilyTier: "opus",
+      ...(maxEffort ? { maxEffort } : {}),
       ...supports1m,
       ...(supports1m.supports1m ? { prefer1m: true as const } : {}),
     });

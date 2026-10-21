@@ -59,7 +59,7 @@ describe("Claude Desktop 3P models", () => {
     process.env.OPENCODEX_CLAUDE_DESKTOP_CONFIG_DIR = dir;
     const models: Desktop3pModelEntry[] = [{
       name: "claude-opus-4-8-20260304", labelOverride: "Hub model",
-      anthropicFamilyTier: "fable", isFamilyDefault: true, supports1m: true, prefer1m: true,
+      anthropicFamilyTier: "fable", isFamilyDefault: true, supports1m: true, prefer1m: true, maxEffort: "high",
     }];
     try {
       saveConfig({ providers: { test: { adapter: "openai-chat", baseUrl: "http://127.0.0.1:1/v1", allowPrivateNetwork: true, liveModels: false, models: ["fixture-model"] } }, defaultProvider: "test", port: 4096 } as OcxConfig);

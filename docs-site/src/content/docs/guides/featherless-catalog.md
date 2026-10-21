@@ -5,6 +5,21 @@ description: Explorar el catálogo completo, filtrar modelos compatibles con her
 
 ## Alcance de esta ampliación
 
+### Límites y esfuerzos por modelo en clientes
+
+La selección consulta `max_completion_tokens` y `context_length` del detalle
+oficial del modelo. El gateway aplica esos límites por destino, sin un máximo
+global compartido. Para reconciliar selecciones existentes sin sondear esfuerzos:
+`bun scripts/sync-featherless-reasoning.ts --limits-only --apply --report .tmp/limites.json`.
+Una consulta fallida conserva los datos anteriores y queda registrada.
+
+Claude Desktop recibe el `maxEffort` oficial derivado de la escala declarada.
+Ese campo sólo oculta niveles superiores: no puede expresar huecos como
+`low/high/max`, ni un selector exclusivamente ON/OFF. El catálogo del gateway
+sí conserva la escala exacta para clientes compatibles, como OMP. Un selector
+genérico de Claude no demuestra que el modelo acepte cada opción mostrada.
+Véase la [referencia oficial de Claude](https://claude.com/docs/third-party/claude-desktop/models).
+
 La pestaña **Models → Featherless** permite buscar y recorrer el catálogo remoto
 por páginas, sin confundir el tamaño de página de 100 con un máximo de modelos.
 Recupera conjuntos restringidos en origen, conserva un índice admitido y mantiene separadas

@@ -4,6 +4,7 @@ import { isFeatherlessCatalogProvider, type FeatherlessModel } from "../../provi
 import { applyFeatherlessReasoningProfile, probeFeatherlessReasoningProfile } from "../../providers/featherless-reasoning";
 import { saveConfigPreservingClaudeCode } from "../../config";
 import { resolveModelsAuthToken } from "../../oauth";
+import { fetchFeatherlessModelLimits, applyFeatherlessModelLimits } from "../../providers/featherless-model-limits";
 import { clearModelCache } from "../../codex/model-cache";
 import { routedSlug, slugEquals, encodedModelIdCollides } from "../../providers/slug-codec";
 import { jsonResponse } from "../auth-cors";
@@ -66,6 +67,7 @@ export async function handleFeatherlessRoutes(ctx: ManagementContext): Promise<R
       if (model.contextLength) custom.contextWindow = model.contextLength;
       custom.inputModalities = model.inputModalities.filter(v => ["text", "image", "audio"].includes(v));
       const token = await resolveModelsAuthToken(provider, current);
+      applyFeatherlessModelLimits(current, custom, await fetchFeatherlessModelLimits(id, token));
       const profile = await probeFeatherlessReasoningProfile(id, token);
       applyFeatherlessReasoningProfile(current, custom, profile);
       if (!existing) entries.push(custom);

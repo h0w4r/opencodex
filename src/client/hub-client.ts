@@ -588,6 +588,8 @@ function desktopSnapshotModels(value: unknown): Desktop3pModelEntry[] {
       || (Object.hasOwn(entry, "isFamilyDefault") && typeof entry.isFamilyDefault !== "boolean")
       || (Object.hasOwn(entry, "supports1m") && entry.supports1m !== true)
       || (Object.hasOwn(entry, "prefer1m") && entry.prefer1m !== true)) throw invalid();
+    if (Object.hasOwn(entry, "maxEffort") && (typeof entry.maxEffort !== "string"
+      || !["low", "medium", "high", "xhigh", "max"].includes(entry.maxEffort))) throw invalid();
     return {
       name: entry.name,
       labelOverride: entry.labelOverride,
@@ -595,6 +597,7 @@ function desktopSnapshotModels(value: unknown): Desktop3pModelEntry[] {
       ...(typeof entry.isFamilyDefault === "boolean" ? { isFamilyDefault: entry.isFamilyDefault } : {}),
       ...(entry.supports1m === true ? { supports1m: true as const } : {}),
       ...(entry.prefer1m === true ? { prefer1m: true as const } : {}),
+      ...(entry.maxEffort !== undefined ? { maxEffort: entry.maxEffort as Desktop3pModelEntry["maxEffort"] } : {}),
     };
   });
   try { assertDesktop3pModelsValid(models); } catch { throw invalid(); }

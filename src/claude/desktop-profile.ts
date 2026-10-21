@@ -14,6 +14,7 @@ export interface DesktopProfileModel {
   route: string;
   label: string;
   contextWindow?: number;
+  maxEffort?: "low" | "medium" | "high" | "xhigh" | "max";
 }
 
 export interface RenderedDesktopModel extends DesktopProfileModel {

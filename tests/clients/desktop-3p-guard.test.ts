@@ -6,6 +6,7 @@ import { assertDesktop3pModelsValid } from "../../src/claude/desktop-3p-guard";
 import { generateDesktop3pModels, writeDesktop3pConfig } from "../../src/claude/desktop-3p";
 import type { Desktop3pModelEntry } from "../../src/claude/desktop-3p";
 import { removeTreeWithRetry } from "../helpers/remove-tree";
+import { reconcileDesktopProfile } from "../../src/claude/desktop-profile";
 
 /**
  * D2: the Desktop 3P output guard. The name was never the leak (non-Anthropic names
@@ -22,6 +23,25 @@ function entry(overrides: Partial<Desktop3pModelEntry>): Desktop3pModelEntry {
     ...overrides,
   };
 }
+
+test("el tope de esfuerzo conserva metadata en listas estáticas y perfiles", () => {
+  // Un tope no inventa una escala donde no existe evidencia.
+  const candidates = [
+    { provider: "test", id: "binario", reasoningEfforts: ["none", "high"] },
+    { provider: "test", id: "nominal", reasoningEfforts: ["low", "medium", "high", "xhigh"] },
+    { provider: "test", id: "discontinuo", reasoningEfforts: ["low", "high", "max"] },
+    { provider: "test", id: "desconocido", reasoningEfforts: [] },
+  ];
+  const profile = reconcileDesktopProfile(undefined, candidates.map(m => ({ route: `test/${m.id}`, label: m.id })));
+  for (const selectedProfile of [undefined, profile]) {
+    const rows = generateDesktop3pModels([], candidates, selectedProfile);
+    expect(rows.find(m => m.labelOverride.includes("Binario"))?.maxEffort).toBe("high");
+    expect(rows.find(m => m.labelOverride.includes("Nominal"))?.maxEffort).toBe("xhigh");
+    expect(rows.find(m => m.labelOverride.includes("Discontinuo"))?.maxEffort).toBe("max");
+    expect(rows.find(m => m.labelOverride.includes("Desconocido"))).not.toHaveProperty("maxEffort");
+  }
+  expect(() => assertDesktop3pModelsValid([entry({ maxEffort: "ultra" as "max" })])).toThrow(/maxEffort/);
+});
 
 test("k3[1m] renders as a clean label with no bracket marker", () => {
   const models = generateDesktop3pModels([], [

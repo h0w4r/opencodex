@@ -1,5 +1,30 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { fetchFeatherlessModelLimits, applyFeatherlessModelLimits } from "../../src/providers/featherless-model-limits";
 import { readFileSync } from "node:fs";
+
+test("los límites publicados alimentan la política física, sin inventarlos ante fallos", async () => {
+  // Doble unitario para el contrato JSON; la aceptación usa el endpoint autenticado real.
+  const fake = (body: unknown, status = 200) => (async () => Response.json(body, { status })) as typeof fetch;
+  const modelId = "author/model";
+  const limits = await fetchFeatherlessModelLimits(modelId, "test-key", fake({
+    id: modelId, context_length: 262144, max_completion_tokens: 32768,
+  }));
+  expect(limits).toMatchObject({ status: 200, contextWindow: 262144, maxOutputTokens: 32768 });
+  const provider = { adapter: "openai-chat", baseUrl: "https://api.featherless.ai/v1" } as import("../../src/types").OcxProviderConfig;
+  const model = { id: "test", provider: "featherless", modelId, addedAt: "2026-10-21" };
+  applyFeatherlessModelLimits(provider, model, limits);
+  expect(provider.modelMaxOutputTokens?.[modelId]).toBe(32768);
+  expect(provider.modelContextWindows?.[modelId]).toBe(262144);
+  for (const body of [{ id: "other", max_completion_tokens: 123 }, { id: modelId, max_completion_tokens: -1 }]) {
+    const unknown = await fetchFeatherlessModelLimits(modelId, "test-key", fake(body));
+    expect(unknown.maxOutputTokens).toBeUndefined();
+    applyFeatherlessModelLimits(provider, model, unknown);
+    expect(provider.modelMaxOutputTokens?.[modelId]).toBe(32768);
+  }
+  const forbidden = await fetchFeatherlessModelLimits(modelId, "test-key", fake({}, 403));
+  expect(forbidden.status).toBe(403);
+  expect(forbidden.maxOutputTokens).toBeUndefined();
+});
 import { join } from "node:path";
 import { createOpenAIChatAdapter } from "../../src/adapters/openai-chat";
 import { buildCatalogEntries, clampEntryToCodexSupportedEfforts, gatherRoutedModels } from "../../src/codex/catalog";

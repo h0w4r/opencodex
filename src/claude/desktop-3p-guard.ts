@@ -25,6 +25,10 @@ export function assertDesktop3pModelsValid(models: readonly Desktop3pModelEntry[
       throw new Error(`Desktop 3P model name duplicated: ${model.name}`);
     }
     seen.add(model.name);
+    // Rechazar valores que Desktop degradaría silenciosamente a low.
+    if (model.maxEffort !== undefined && !["low", "medium", "high", "xhigh", "max"].includes(model.maxEffort)) {
+      throw new Error("Desktop 3P maxEffort is invalid");
+    }
     if (FORBIDDEN_LABEL_CHARS.test(model.labelOverride)) {
       throw new Error(`Desktop 3P label carries a raw capability marker: ${model.labelOverride}`);
     }

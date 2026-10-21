@@ -20,6 +20,13 @@ function route(overrides: Partial<RouteResult> & { adapter?: string; authMode?: 
 }
 
 describe("native Chat decline reasons", () => {
+  test("normaliza delimitadores y controles de esfuerzo mediante el compilador compartido", () => {
+    const declared = route({ provider: { adapter: "openai-chat", baseUrl: "https://example.invalid/v1", inlineThinkTagModels: ["m"] } });
+    expect(nativeChatDeclineReason(declared, {})).toBe("bridge-only-policy");
+    expect(nativeChatDeclineReason(route(), { reasoning: { effort: "high" } })).toBe("bridge-only-policy");
+    expect(nativeChatDeclineReason(route(), { reasoning: { enabled: false } })).toBe("bridge-only-policy");
+    expect(nativeChatDeclineReason(route(), { reasoning: { unrelated: true } })).toBeUndefined();
+  });
   test("an eligible route has no reason", () => {
     expect(nativeChatDeclineReason(route(), { messages: [] })).toBeUndefined();
     expect(isNativeChatRouteEligible(route(), { messages: [] })).toBe(true);

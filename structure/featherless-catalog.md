@@ -161,6 +161,20 @@ lista de modelos permitidos ni sustituye la política del catálogo.
 
 ## Controles de razonamiento sincronizados
 
+`src/providers/featherless-reasoning-declaration.ts` extrae listas explícitas del
+README público del propio autor, con tamaño e inactividad acotados y sin enviar
+la credencial Featherless. Esa declaración prevalece sobre aliases que el formatter
+acepta pero convierte al default; por ejemplo, `max` no se sustituye por `medium`.
+El interruptor se contrasta por repetición y una escala observada inestable no
+reemplaza evidencia previa. Los esfuerzos nominales viajan con el mismo valor en
+`reasoning_effort` y `chat_template_kwargs.reasoning_effort`, como admite Featherless.
+
+El sondeo contrasta también `minimal` y `ultra` contra los niveles nominales;
+valores aceptados pero equivalentes no crean controles adicionales. La igualdad de
+plantillas ignoradas no se interpreta como razonamiento always-on. El script
+`scripts/sync-featherless-reasoning.ts --report <archivo>` conserva evidencia sanitizada
+de las selecciones, hashes de plantilla y escalas reales, sin prompts ni credenciales.
+
 La evidencia del formatter incluye si la plantilla acaba en una apertura de pensamiento.
 Ese dato habilita la recuperación de delimitadores implícitos descrita en
 [compatibilidad Chat](providers/chat-compat.md#inline-think-tag-recovery), sin guardar prompts.

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { type OcxConfig, type OcxCustomModel, type OcxProviderConfig } from "../types";
 import { isFeatherlessCatalogProvider } from "./featherless-catalog";
 import { slugEquals } from "./slug-codec";
+import { fetchReasoningDeclaration, type ReasoningDeclaration } from "./featherless-reasoning-declaration";
 
 /** Contrato probado del selector de razonamiento que Codex puede representar. */
 export interface FeatherlessReasoningProfile {
@@ -23,6 +24,8 @@ export interface FeatherlessReasoningProfile {
     effortHashes?: Record<string, string>;
     /** Sólo metadatos del delimitador; nunca se persiste el prompt formateado. */
     thinkingPrefill?: boolean;
+    declaration?: ReasoningDeclaration;
+    stableToggle?: boolean;
   };
 }
 
@@ -68,6 +71,8 @@ async function renderTemplateOnce(
         model: modelId,
         messages: [{ role: "user", content: "Responde pong." }],
         ...(kwargs ? { chat_template_kwargs: kwargs } : {}),
+        // El endpoint documenta también el campo OpenAI nativo; nunca divergen.
+        ...(typeof kwargs?.reasoning_effort === "string" ? { reasoning_effort: kwargs.reasoning_effort } : {}),
       }),
     });
     if (!response.ok) return { status: response.status };
@@ -120,25 +125,35 @@ export async function probeFeatherlessReasoningProfile(
     };
   }
 
-  const [omitted, disabled, enabled] = await Promise.all([
-    renderTemplate(modelId, apiKey, undefined, deps),
-    renderTemplate(modelId, apiKey, { enable_thinking: false }, deps),
-    renderTemplate(modelId, apiKey, { enable_thinking: true }, deps),
-  ]);
+  const omitted = await renderTemplate(modelId, apiKey, undefined, deps);
+  const disabled = await renderTemplate(modelId, apiKey, { enable_thinking: false }, deps);
+  const enabled = await renderTemplate(modelId, apiKey, { enable_thinking: true }, deps);
+  // Una respuesta aislada de un formatter inconsistente no acredita un interruptor.
+  const disabledAgain = await renderTemplate(modelId, apiKey, { enable_thinking: false }, deps);
+  const enabledAgain = await renderTemplate(modelId, apiKey, { enable_thinking: true }, deps);
+  const stableToggle = disabled.prompt !== undefined && enabled.prompt !== undefined
+    && disabled.prompt === disabledAgain.prompt && enabled.prompt === enabledAgain.prompt;
   const baseEvidence = {
     source: "featherless-debug-chat-format" as const,
     omittedHash: hash(omitted.prompt),
     disabledHash: hash(disabled.prompt),
     enabledHash: hash(enabled.prompt),
     thinkingPrefill: /<(?:think|thinking|reasoning)>\s*$/.test(enabled.prompt ?? ""),
+    stableToggle,
     statuses: [omitted.status, disabled.status, enabled.status],
   };
-  const toggleWorks = disabled.prompt !== undefined
+  const toggleWorks = stableToggle && disabled.prompt !== undefined
     && enabled.prompt !== undefined
     && disabled.prompt !== enabled.prompt;
+  // La igualdad de tres plantillas no demuestra si el modelo razona por defecto.
+  const defaultEnabled = toggleWorks
+    ? omitted.prompt === enabled.prompt ? true : omitted.prompt === disabled.prompt ? false : null
+    : /<(?:think|thinking|reasoning)>\s*$/.test(omitted.prompt ?? "") ? true : null;
   // Algunos modelos siempre razonan y ofrecen niveles nominales en la plantilla,
   // aunque no acepten enable_thinking. Una igualdad o un 200 aislado no los acredita.
-  const namedEfforts = ["low", "medium", "high", "xhigh", "max"];
+  // Primero los valores consolidados: una etiqueta desconocida que cae al default
+  // no debe desplazar a un nivel ya comprobado con el mismo resultado.
+  const namedEfforts = ["low", "medium", "high", "xhigh", "max", "minimal", "ultra"];
   const named = await Promise.all(namedEfforts.map(effort =>
     renderTemplate(modelId, apiKey, { reasoning_effort: effort }, deps)));
   const hashes: Record<string, string> = {};
@@ -151,26 +166,34 @@ export async function probeFeatherlessReasoningProfile(
     hashes[namedEfforts[i]!] = digest;
   }
   const namedConclusive = named.every(result => [200, 400, 422].includes(result.status));
-  if (distinct.size > 1 && namedConclusive) {
-    const efforts = [...(toggleWorks ? ["none"] : []), ...Object.keys(hashes)];
-    const defaultEffort = toggleWorks && omitted.prompt === disabled.prompt ? "none"
-      : efforts.find(effort => hashes[effort] === baseEvidence.omittedHash);
+  const declaration = await fetchReasoningDeclaration(modelId, deps.fetch ?? fetch);
+  let namedStable = true;
+  if (!declaration && distinct.size > 1) {
+    // Un formatter que alterna plantillas no puede inventar ni retirar niveles.
+    for (const [index, effort] of namedEfforts.entries()) {
+      const repeated = await renderTemplate(modelId, apiKey, { reasoning_effort: effort }, deps);
+      namedStable &&= repeated.status === named[index]!.status && repeated.prompt === named[index]!.prompt;
+    }
+  }
+  if ((declaration || distinct.size > 1) && namedConclusive) {
+    const order = ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"];
+    const efforts = [...new Set([...(toggleWorks ? ["none"] : []), ...(declaration?.efforts ?? Object.keys(hashes))])]
+      .sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    const defaultEffort = declaration?.defaultEffort ?? (toggleWorks && omitted.prompt === disabled.prompt ? "none"
+      : efforts.find(effort => hashes[effort] === baseEvidence.omittedHash));
     return {
-      kind: "effort", complete: omitted.prompt !== undefined,
+      kind: "effort", complete: omitted.prompt !== undefined && namedStable,
       reasoningEfforts: efforts, ...(defaultEffort ? { defaultReasoningEffort: defaultEffort } : {}),
-      defaultEnabled: true, checkedAt,
-      evidence: { ...baseEvidence, effortHashes: hashes, statuses: [...baseEvidence.statuses, ...named.map(result => result.status)] },
+      defaultEnabled: defaultEffort ? defaultEffort !== "none" : defaultEnabled, checkedAt,
+      evidence: { ...baseEvidence, ...(declaration ? { declaration } : {}), effortHashes: hashes, statuses: [...baseEvidence.statuses, ...named.map(result => result.status)] },
     };
   }
   if (!toggleWorks) {
     return {
       kind: "fixed-or-unknown",
-      complete: namedConclusive && [omitted, disabled, enabled].every(rendered => rendered.prompt !== undefined),
+      complete: namedConclusive && stableToggle && [omitted, disabled, enabled].every(rendered => rendered.prompt !== undefined),
       reasoningEfforts: [],
-      defaultEnabled: omitted.prompt !== undefined && enabled.prompt !== undefined
-        && omitted.prompt === enabled.prompt ? true
-        : omitted.prompt !== undefined && disabled.prompt !== undefined
-          && omitted.prompt === disabled.prompt ? false : null,
+      defaultEnabled,
       checkedAt,
       evidence: baseEvidence,
     };
@@ -185,9 +208,6 @@ export async function probeFeatherlessReasoningProfile(
   const budgetWorks = budgetLow.prompt !== undefined
     && budgetHigh.prompt !== undefined
     && budgetLow.prompt !== budgetHigh.prompt;
-  const defaultEnabled = omitted.prompt === enabled.prompt
-    ? true
-    : omitted.prompt === disabled.prompt ? false : null;
   return {
     kind: budgetWorks ? "budget" : "toggle",
     // La escala binaria está probada, pero no se afirma que sea exhaustiva si
@@ -254,11 +274,12 @@ export function applyFeatherlessReasoningProfile(
   );
   provider.modelSuppressSyntheticMax = setRecord(provider.modelSuppressSyntheticMax, modelId, true);
 
-  const supportsToggle = profile.kind === "toggle" || profile.kind === "budget";
+  const supportsToggle = profile.reasoningEfforts.includes("none");
   const wireMap: Record<string, string> | undefined = profile.kind === "toggle"
     ? { none: "disabled", high: "enabled" }
     : profile.kind === "budget" ? { none: "disabled" }
-      : profile.kind === "effort" ? Object.fromEntries(profile.reasoningEfforts.map(effort => [effort, effort === "none" ? "disabled" : `template:${effort}`])) : undefined;
+      : profile.kind === "effort" ? Object.fromEntries(profile.reasoningEfforts.map(effort => [effort,
+        effort === "none" && !profile.evidence.declaration?.efforts.includes("none") ? "disabled" : `template:${effort}`])) : undefined;
   provider.modelReasoningEffortMap = setRecord(provider.modelReasoningEffortMap, modelId, wireMap);
   provider.thinkingBudgetModels = setMembership(provider.thinkingBudgetModels, modelId, profile.kind === "budget");
   // No inferirlo del nombre del modelo: la plantilla real debe terminar con una apertura.

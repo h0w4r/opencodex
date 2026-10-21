@@ -50,7 +50,10 @@ export function applyExplicitChatReasoningWirePolicy(options: {
         if (budget !== undefined) kwargs.thinking_budget = budget;
       }
     }
-    delete body.reasoning_effort;
+    // Featherless documenta niveles nativos (p. ej. GLM) y kwargs de plantilla.
+    // Emitir el mismo valor en ambos evita depender de un formatter que ignore uno.
+    if (wireEffort.startsWith("template:")) body.reasoning_effort = wireEffort.slice("template:".length);
+    else delete body.reasoning_effort;
     delete body.reasoning;
     body.chat_template_kwargs = kwargs;
     return { handled: true, reasoningLog: wireEffort.startsWith("template:")

@@ -103,7 +103,7 @@ describe("Featherless effort parity across client protocols", () => {
       expect(direct.reasoningLog).toBeDefined();
     });
   }
-  test("a verified template effort is not emitted as an unsupported top-level field", () => {
+  test("un nivel nominal conserva el mismo valor OpenAI y de plantilla en Featherless", () => {
     const named: OcxProviderConfig = { ...featherless,
       modelReasoningEfforts: { [id]: ["low", "medium", "high"] },
       modelReasoningEffortMap: { [id]: { low: "template:low", medium: "template:medium", high: "template:high" } },
@@ -112,7 +112,7 @@ describe("Featherless effort parity across client protocols", () => {
     const body = JSON.parse(request.body);
     expect(body.chat_template_kwargs.reasoning_effort).toBe("low");
     expect(request.reasoningLog?.wireField).toBe("chat_template_kwargs.reasoning_effort");
-    expect(body).not.toHaveProperty("reasoning_effort");
+    expect(body.reasoning_effort).toBe("low");
   });
   test("a budget projection is identical across both ingress protocols", () => {
     const budget: OcxProviderConfig = { ...featherless, thinkingBudgetModels: [id],

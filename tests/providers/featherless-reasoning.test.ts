@@ -5,6 +5,7 @@ import {
   type FeatherlessReasoningProfile,
 } from "../../src/providers/featherless-reasoning";
 import type { OcxCustomModel, OcxProviderConfig } from "../../src/types";
+import { reasoningDeclarationFromCard } from "../../src/providers/featherless-reasoning-declaration";
 
 function responseForPrompt(prompt: string): Response {
   return Response.json({ formatted_prompt: prompt, token_count: prompt.length, template_info: {} });
@@ -76,7 +77,7 @@ describe("Featherless reasoning discovery", () => {
       kind: "fixed-or-unknown",
       complete: true,
       reasoningEfforts: [],
-      defaultEnabled: true,
+      defaultEnabled: null,
     });
   });
 
@@ -94,7 +95,7 @@ describe("Featherless reasoning discovery", () => {
     });
     expect(profile.kind).toBe("toggle");
     expect(profile.complete).toBe(true);
-    expect(calls).toBe(11);
+    expect(calls).toBe(16);
   });
 
   test("projects an evidence-backed toggle onto catalog and transport without fake tiers", () => {
@@ -155,6 +156,38 @@ describe("Featherless reasoning discovery", () => {
 });
 
 describe("Featherless nominal effort evidence", () => {
+  test("la declaración del autor distingue max real de aliases desconocidos que caen al default", async () => {
+    const card = "The reasoning_effort parameter accepts three levels: `low`, `high`, and `max`. It defaults to `max`.";
+    expect(reasoningDeclarationFromCard(card, "https://huggingface.co/example/model/raw/main/README.md")?.efforts).toEqual(["low", "high", "max"]);
+    const profile = await probeFeatherlessReasoningProfile("example/declared", "secret", {
+      fetch: (async (url, init) => {
+        if (String(url).startsWith("https://huggingface.co/")) {
+          expect(new Headers(init?.headers).has("authorization")).toBe(false);
+          return new Response(card);
+        }
+        const body = JSON.parse(String(init?.body));
+        const effort = body.chat_template_kwargs?.reasoning_effort;
+        if (effort) expect(body.reasoning_effort).toBe(effort);
+        return responseForPrompt(effort === "low" ? "LOW" : effort === "high" ? "HIGH" : "MAX");
+      }) as typeof fetch,
+    });
+    expect(profile.reasoningEfforts).toEqual(["low", "high", "max"]);
+    expect(profile.defaultReasoningEffort).toBe("max");
+    expect(profile.evidence.declaration?.url).toContain("huggingface.co/example/declared/");
+  });
+  test("una escala nominal con default apagado no se declara always-on", async () => {
+    const profile = await probeFeatherlessReasoningProfile("example/named-toggle", "secret", {
+      fetch: (async (_input, init) => {
+        const kwargs = JSON.parse(String(init?.body)).chat_template_kwargs;
+        if (kwargs?.reasoning_effort) {
+          if (!["low", "high"].includes(kwargs.reasoning_effort)) return new Response(null, { status: 400 });
+          return responseForPrompt("ON-" + kwargs.reasoning_effort);
+        }
+        return responseForPrompt(kwargs?.enable_thinking === true ? "ON-high" : "OFF");
+      }) as typeof fetch,
+    });
+    expect(profile).toMatchObject({ kind: "effort", defaultEnabled: false, defaultReasoningEffort: "none", reasoningEfforts: ["none", "low", "high"] });
+  });
   test("discovers template effort levels even when thinking cannot be switched off", async () => {
     const profile = await probeFeatherlessReasoningProfile("example/always-on", "secret", {
       fetch: (async (_input, init) => {

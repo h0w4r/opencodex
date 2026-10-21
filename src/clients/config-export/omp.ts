@@ -17,7 +17,10 @@ export interface OmpModelEntry extends Omit<PiModelEntry, "reasoning"> {
     mode: "effort";
     efforts: string[];
     defaultLevel?: string;
+    /** Un `none` probado permite apagar; sin él no se inventa ese control. */
+    requiresEffort?: boolean;
   };
+  compat?: { thinkingFormat: "openrouter"; supportsReasoningEffort: boolean };
 }
 
 export interface OmpProviderBlock {
@@ -76,8 +79,14 @@ export function buildOmpClientConfig(ctx: ExportContext): OmpGeneratedConfig {
       entry.thinking = {
         mode: "effort",
         efforts,
+        requiresEffort: !(model.reasoningEfforts ?? []).some(effort => effort.trim().toLowerCase() === "none"),
         ...(defaultLevel && efforts.includes(defaultLevel) ? { defaultLevel } : {}),
       };
+      if (!(model.native && model.provider === "openai")) {
+        // Es sólo el dialecto JSON del gateway local, NO una conexión a OpenRouter.
+        // OpenAI genérico en OMP convierte off en el esfuerzo mínimo, no en apagado.
+        entry.compat = { thinkingFormat: "openrouter", supportsReasoningEffort: true };
+      }
     } else if (Array.isArray(model.reasoningEfforts) && model.reasoningEfforts.length === 0) {
       // An explicit empty ladder is authoritative "no reasoning" metadata. Omitting the
       // field lets OMP apply its own name-based inference, which can invent a generic

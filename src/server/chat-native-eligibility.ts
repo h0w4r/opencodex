@@ -1,7 +1,7 @@
 import { chatBodyCarriesImage, chatBodyCarriesToolResultImage } from "../chat/image-parts";
 import type { ProtocolReasonCode } from "../protocols/contract";
 import type { RouteResult } from "../router";
-import type { OcxConfig } from "../types";
+import { modelInList, type OcxConfig } from "../types";
 import { isModelTextOnly, requiresVisionPreprocessing } from "../vision";
 
 type Rec = Record<string, unknown>;
@@ -20,6 +20,7 @@ export type NativeChatDeclineReason = Extract<
   | "tool-result-image"
   | "vision-preprocessing"
   | "hosted-tool"
+  | "bridge-only-policy"
 >;
 
 /**
@@ -37,6 +38,11 @@ export function nativeChatDeclineReason(
   if (provider.authMode !== undefined && provider.authMode !== "key" && provider.authMode !== "local") return "auth-mode-not-native";
   // Combo and policy execution own multi-candidate retries in the Responses pipeline.
   if (route.combo || route.routeKind === "combo" || route.routeKind === "policy") return "combo-or-policy-route";
+  // La normalización declarada de pensamiento y los controles anidados necesitan
+  // el compilador compartido, no un relay que conserve bytes incompatibles.
+  if (modelInList(provider.inlineThinkTagModels, route.modelId)
+      || (isRec(rawBody.reasoning) && (typeof rawBody.reasoning.effort === "string"
+        || rawBody.reasoning.enabled === false))) return "bridge-only-policy";
   if (rawBody.store === true || rawBody.background === true) return "responses-only-feature";
   if (typeof rawBody.previous_response_id === "string" && rawBody.previous_response_id.length > 0) return "responses-only-feature";
   if (rawBody.compaction_trigger !== undefined) return "responses-only-feature";

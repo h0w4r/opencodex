@@ -116,7 +116,7 @@ describe("split config-export public facade", () => {
       inputModalities: ["text", "image"], reasoningEfforts: ["none", "high"],
     }] });
     const cases = [
-      ["omp", ["providers", "opencodex"], '{"providers":{"opencodex":{"baseUrl":"http://127.0.0.1:10100/v1","api":"openai-completions","apiKey":"opencodex-loopback","models":[{"id":"test/known","name":"known (test)","input":["text","image"],"contextWindow":8192,"maxTokens":8192,"reasoning":true,"thinking":{"mode":"effort","efforts":["high"]}}]}}}'],
+      ["omp", ["providers", "opencodex"], '{"providers":{"opencodex":{"baseUrl":"http://127.0.0.1:10100/v1","api":"openai-completions","apiKey":"opencodex-loopback","models":[{"id":"test/known","name":"known (test)","input":["text","image"],"contextWindow":8192,"maxTokens":8192,"reasoning":true,"thinking":{"mode":"effort","efforts":["high"],"requiresEffort":false},"compat":{"thinkingFormat":"openrouter","supportsReasoningEffort":true}}]}}}'],
       ["dsh", ["llm-pi-ai", "providers", "opencodex"], '{"llm-pi-ai":{"providers":{"opencodex":{"displayName":"OpenCodex","api":"openai-responses","baseURL":"http://127.0.0.1:10100/v1","headers":{"Authorization":"Bearer ocx_data_dsh"},"models":[{"id":"test/known","name":"known (test)","input":["text","image"],"contextWindow":8192,"reasoningEfforts":{"high":"high"}}]}}}}'],
       ["mcode", ["custom_provider", "opencodex"], '{"custom_provider":{"opencodex":{"name":"OpenCodex","kind":"custom","enabled":true,"api":"anthropic-messages","options":{"apiKey":"opencodex-loopback","baseURL":"http://127.0.0.1:10100","authMode":"api-key"},"models":{"test/known":{"limit":{"context":8192},"thinking":{"effortOptions":["high"]}}}}}}'],
       ["zcode", ["provider", "opencodex"], '{"provider":{"opencodex":{"name":"OpenCodex","kind":"openai","enabled":true,"source":"custom","options":{"apiKey":"opencodex-loopback","baseURL":"http://127.0.0.1:10100/v1","apiKeyRequired":true},"models":{"test/known":{"name":"known (test)","modalities":{"input":["text","image"],"output":["text"]},"limit":{"context":8192},"reasoning":{"enabled":true,"variants":["high"]}}}}}}'],
@@ -471,10 +471,11 @@ describe("OMP serializer", () => {
     expect(native.api).toBe("openai-responses");
     expect(native.input).toEqual(["text", "image"]);
     expect(native.reasoning).toBe(true);
-    expect(native.thinking).toEqual({ mode: "effort", efforts: ["low", "high"], defaultLevel: "high" });
+    expect(native.thinking).toEqual({ mode: "effort", efforts: ["low", "high"], requiresEffort: true, defaultLevel: "high" });
 
     const routed = provider.models.find(model => model.id === "command-code/muse-spark-1.2")!;
     expect(routed).not.toHaveProperty("api");
+    expect(routed.compat).toEqual({ thinkingFormat: "openrouter", supportsReasoningEffort: true });
   });
 
   test("emits OMP reasoning metadata only for the accepted effort vocabulary", () => {
@@ -492,7 +493,7 @@ describe("OMP serializer", () => {
     };
     const model = document.providers.opencodex.models[0]!;
     expect(model.reasoning).toBe(true);
-    expect(model.thinking).toEqual({ mode: "effort", efforts: ["low", "high"] });
+    expect(model.thinking).toEqual({ mode: "effort", efforts: ["low", "high"], requiresEffort: false });
   });
 
   test("does not emit reasoning or thinking when no supported efforts are declared", () => {

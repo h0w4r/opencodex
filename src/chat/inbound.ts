@@ -410,6 +410,8 @@ function responseFormatToText(format: unknown): Rec | undefined {
 }
 
 function resolveReasoningEffort(raw: Rec): string | undefined {
+  // Un apagado explícito prevalece sobre una preferencia de intensidad retenida.
+  if (isRec(raw.reasoning) && raw.reasoning.enabled === false) return "none";
   if (typeof raw.reasoning_effort === "string" && OUTPUT_CONFIG_EFFORTS.has(raw.reasoning_effort)) {
     return raw.reasoning_effort;
   }

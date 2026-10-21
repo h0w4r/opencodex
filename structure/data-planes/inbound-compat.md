@@ -17,6 +17,10 @@ using the same policy as final Responses serialization. Native dispatch retains 
 The configuration-only [plaintext V2 contract](../subagents.md#plaintext-v2-agent-messages)
 is scoped to canonical ChatGPT Responses forwarding; other source-area behavior described here is unchanged. Cursor's localized native-shell names follow the [routing-commentary guard contract](../providers/cursor.md#cursor-native-exec).
 
+En Chat, `reasoning.enabled=false` se normaliza como `none`, incluso con una
+intensidad retenida. Los controles anidados y `inlineThinkTagModels` requieren
+el compilador compartido (`bridge-only-policy`), no el relay nativo opaco.
+
 ## Standalone file transcription
 
 `src/server/audio-transcriptions.ts` owns `POST /v1/audio/transcriptions`, independently of

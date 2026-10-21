@@ -5,16 +5,26 @@
  * Uso:
  *   bun scripts/sync-featherless-reasoning.ts          # diagnóstico sin escritura
  *   bun scripts/sync-featherless-reasoning.ts --apply  # guarda config.json de forma atómica
+ *   bun scripts/sync-featherless-reasoning.ts --report <archivo> # evidencia sanitizada
  */
 import { armDetachedConfigBaseline, loadConfig, saveConfigPreservingClaudeCode } from "../src/config";
 import { resolveModelsAuthToken } from "../src/oauth";
 import { isFeatherlessCatalogProvider } from "../src/providers/featherless-catalog";
+import { slugEquals } from "../src/providers/slug-codec";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import {
   applyFeatherlessReasoningProfile,
   probeFeatherlessReasoningProfile,
 } from "../src/providers/featherless-reasoning";
 
 const apply = process.argv.includes("--apply");
+const reportIndex = process.argv.indexOf("--report");
+if (reportIndex >= 0 && (!process.argv[reportIndex + 1] || process.argv[reportIndex + 1]!.startsWith("--"))) {
+  throw new Error("--report requiere una ruta de archivo.");
+}
+const reportPath = reportIndex < 0 ? undefined : resolve(process.argv[reportIndex + 1]!);
+const evidence: Record<string, unknown>[] = [];
 const config = loadConfig();
 // Conservar ediciones concurrentes durante las consultas remotas.
 armDetachedConfigBaseline(config);
@@ -39,6 +49,10 @@ for (const [providerName, provider] of Object.entries(config.providers)) {
     else if (profile.kind === "effort") namedEfforts++;
     else fixedOrUnknown++;
     if (apply) applyFeatherlessReasoningProfile(provider, model, profile);
+    // Evidencia pública de controles, nunca API keys ni contenido del system prompt.
+    evidence.push({ provider: providerName, modelId: model.modelId,
+      selected: !(config.disabledModels ?? []).some(slug => slugEquals(slug, providerName, model.modelId)),
+      profile, storedEfforts: model.reasoningEfforts, storedDefault: model.defaultReasoningEffort });
     console.log(
       `[${inspected}/${models.length}] ${model.modelId}: ${profile.complete ? profile.kind : "inconclusive-preserved"}`
       + (profile.reasoningEfforts.length > 0 ? ` (${profile.reasoningEfforts.join(",")})` : ""),
@@ -47,4 +61,10 @@ for (const [providerName, provider] of Object.entries(config.providers)) {
 }
 
 if (apply) saveConfigPreservingClaudeCode(config);
+if (reportPath) {
+  mkdirSync(dirname(reportPath), { recursive: true });
+  const temporary = `${reportPath}.${process.pid}.tmp`;
+  writeFileSync(temporary, JSON.stringify({ at: new Date().toISOString(), apply, models: evidence }, null, 2) + "\n", { mode: 0o600 });
+  renameSync(temporary, reportPath);
+}
 console.log(JSON.stringify({ apply, inspected, toggles, budgets, namedEfforts, fixedOrUnknown, inconclusivePreserved }));

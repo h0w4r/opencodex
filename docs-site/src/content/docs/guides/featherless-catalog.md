@@ -123,3 +123,29 @@ apertura visible. Así no aparecen `</think>` ni el borrador en la respuesta fin
 No se eliminan frases repetidas por heurísticas. Un texto sin delimitadores se
 conserva íntegramente; los modelos no declarados mantienen su respuesta original.
 Las firmas y bloques nativos de Anthropic siguen usando su canal independiente.
+
+## Esfuerzos en OMP y clientes Chat
+
+Cada modelo conserva únicamente su escala acreditada. `none` significa apagado;
+no se inventan niveles intermedios para modelos que sólo ofrecen encendido/apagado.
+La integración OMP publica `requiresEffort=false` sólo cuando existe `none`.
+Para sus modelos ruteados usa la forma JSON `reasoning.effort` y
+`reasoning.enabled=false` contra el mismo gateway local. El nombre del dialecto
+`openrouter` no agrega un proveedor, una cuenta ni una conexión a OpenRouter.
+Esto evita que OMP convierta apagar en el esfuerzo mínimo todavía activo.
+
+La normalización Chat compartida también separa delimitadores de pensamiento en
+clientes que no hablan Messages. Los modelos sin escala configurable no reciben
+un selector ficticio. Para auditar sin consumir inferencias:
+
+```bash
+bun scripts/sync-featherless-reasoning.ts --report .tmp/razonamiento.json
+```
+
+Añade `--apply` para persistir los controles completos. Una consulta inconclusa
+preserva el estado previo y se identifica como tal en el informe.
+
+Las declaraciones explícitas del autor del modelo tienen prioridad sobre aliases
+aceptados pero ignorados por el formatter. Se conserva el enlace y hash de la
+fuente pública. Un sondeo inestable se identifica y no sustituye evidencia previa.
+La lectura de las fichas es sólo de datos, sin ejecutar instrucciones ni código.

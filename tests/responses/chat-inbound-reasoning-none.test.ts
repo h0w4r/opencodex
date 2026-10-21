@@ -23,6 +23,11 @@ function reasoningOf(body: Record<string, unknown>): Record<string, unknown> | u
 }
 
 describe("F7 explicit reasoning disable survives the Chat boundary", () => {
+  test("el apagado explícito de OMP prevalece sobre la intensidad retenida", () => {
+    const body = chatCompletionsToResponsesBody(chat({ reasoning: { enabled: false, effort: "high" } }));
+    expect(reasoningOf(body)?.effort).toBe("none");
+    expect(responsesRequestSchema.safeParse(body).success).toBe(true);
+  });
   test("preserves a flat reasoning_effort of none", () => {
     const body = chatCompletionsToResponsesBody(chat({ reasoning_effort: "none" }));
     expect(reasoningOf(body)?.effort).toBe("none");

@@ -236,6 +236,9 @@ clamping it to context. `src/clients/config-export/reasoning-metadata.ts` preser
 an unknown effort ladder and an explicit empty ladder, canonicalizes declared efforts (including `none`),
 and carries only an authoritative valid default. A default outside an explicit ladder is omitted rather
 than reviving a cleared capability. Exporters do not invent a medium default for reasoning models.
+OMP exporta `thinking.requiresEffort` según la presencia real de `none`; para modelos
+ruteados usa el dialecto JSON `openrouter` contra el gateway local, sin otro proveedor.
+Así `off` envía `reasoning.enabled=false`, no el mínimo nivel activo del modelo.
 
 `src/server/management/model-row-export-metadata.ts` resolves custom-row inheritance without
 backfilling the stored override fields the editor reads. Management rows attach `exportMetadata`;

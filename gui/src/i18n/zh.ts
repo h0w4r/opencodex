@@ -1,3 +1,4 @@
+import { claudeExternalEffortCopy } from "./claude-external-effort-copy";
 import { managedUpdateCopy } from "./managed-update-copy";
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
 
@@ -77,6 +78,7 @@ export const zh: Record<TKey, string> = {
 
   ...featherlessCopy,
   ...managedUpdateCopy,
+  ...claudeExternalEffortCopy,
   "tray.updated": "更新于 {time} · 每60秒",
   "tray.today": "今天",
   "tray.input": "输入",

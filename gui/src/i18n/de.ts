@@ -1,3 +1,4 @@
+import { claudeExternalEffortCopy } from "./claude-external-effort-copy";
 import { managedUpdateCopy } from "./managed-update-copy";
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
 
@@ -78,6 +79,7 @@ export const de: Record<TKey, string> = {
 
   ...featherlessCopy,
   ...managedUpdateCopy,
+  ...claudeExternalEffortCopy,
   "tray.updated": "Aktualisiert {time} · alle 60s",
   "tray.today": "Heute",
   "tray.input": "Eingabe",

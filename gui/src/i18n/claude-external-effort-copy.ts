@@ -1,0 +1,41 @@
+/** Texto compartido para que todos los catálogos ofrezcan el mismo contrato explícito. */
+export const claudeExternalEffortCopy = {
+  "claudeEffort.title": "Esfuerzo real de modelos externos",
+  "claudeEffort.description": "Aplica a las siguientes peticiones Messages de este modelo, incluidas Code, Cowork y CLI. Se guarda por modelo y se comparte entre sesiones. No cambia Anthropic nativo ni las rutas Chat/Responses de OMP y Codex. Las peticiones ya admitidas conservan su elección.",
+  "claudeEffort.model": "Modelo externo",
+  "claudeEffort.level": "Esfuerzo aplicado por OpenCodex",
+  "claudeEffort.current": "Valor guardado: {effort}. El cambio sólo se aplica al pulsar Guardar elección.",
+  "claudeEffort.save": "Guardar elección",
+  "claudeEffort.client": "Sin fijar: usar elección válida del cliente o predeterminado",
+  "claudeEffort.off": "Desactivado (OFF)",
+  "claudeEffort.on": "Activado (ON)",
+  "claudeEffort.unknown": "Sin escala ajustable verificada. Esto no significa que el modelo no pueda razonar; no se inventan niveles.",
+  "claudeEffort.stale": "La selección guardada ya no está declarada. El gateway rechazará la petición en lugar de cambiarla silenciosamente. Elige un valor válido o elimina la selección.",
+  "claudeEffort.nativeNote": "El control visible dentro de Claude puede mostrar otro valor: mientras haya una selección guardada aquí, éste es el control efectivo para este modelo externo.",
+  "claudeEffort.saved": "Selección guardada y disponible para las siguientes peticiones; no requiere reiniciar Claude.",
+  "claudeEffort.loading": "Cargando escalas verificadas…",
+  "claudeEffort.empty": "No hay modelos externos seleccionados en el catálogo.",
+  "claudeEffort.loadError": "No se pudo cargar el estado real de esfuerzos.",
+  "claudeEffort.saveError": "No se pudo confirmar el guardado. Vuelve a consultar el estado antes de reintentar; no se presupone éxito ni reversión.",
+} as const;
+
+/** Traducción francesa explícita: no se excluye el texto nuevo del control de localización. */
+export const claudeExternalEffortCopyFr: Record<keyof typeof claudeExternalEffortCopy, string> = {
+  "claudeEffort.title": "Effort réel des modèles externes",
+  "claudeEffort.description": "Ce choix OpenCodex remplace le sélecteur Claude pour les prochaines requêtes Messages de ce modèle, y compris Code, Cowork et CLI. Il est partagé entre ses sessions, sans modifier les modèles Anthropic natifs ni OMP. Les requêtes déjà admises conservent leur choix.",
+  "claudeEffort.model": "Modèle externe",
+  "claudeEffort.level": "Effort appliqué par OpenCodex",
+  "claudeEffort.current": "Valeur enregistrée : {effort}. Le changement ne s’applique qu’après Enregistrer le choix.",
+  "claudeEffort.save": "Enregistrer le choix",
+  "claudeEffort.client": "Non imposé : choix valide du client ou valeur par défaut",
+  "claudeEffort.off": "Désactivé (OFF)",
+  "claudeEffort.on": "Activé (ON)",
+  "claudeEffort.unknown": "Aucune échelle réglable vérifiée. Cela ne signifie pas que le modèle ne peut pas raisonner ; aucun niveau n’est inventé.",
+  "claudeEffort.stale": "Le choix enregistré n’est plus déclaré. La passerelle refusera la requête au lieu de le remplacer silencieusement. Choisissez une valeur valide ou supprimez le choix.",
+  "claudeEffort.nativeNote": "Le contrôle visible dans Claude peut afficher une autre valeur : tant qu’un choix est enregistré ici, ce contrôle est effectif pour ce modèle externe.",
+  "claudeEffort.saved": "Choix enregistré et disponible pour les prochaines requêtes ; aucun redémarrage de Claude n’est nécessaire.",
+  "claudeEffort.loading": "Chargement des échelles vérifiées…",
+  "claudeEffort.empty": "Aucun modèle externe sélectionné dans le catalogue.",
+  "claudeEffort.loadError": "Impossible de charger l’état réel des efforts.",
+  "claudeEffort.saveError": "Impossible de confirmer l’enregistrement. Rechargez l’état avant de réessayer ; ni succès ni restauration ne sont présumés.",
+};

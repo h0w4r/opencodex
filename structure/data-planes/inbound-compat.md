@@ -1,4 +1,5 @@
 # Inbound Compatibility Surfaces
+El esfuerzo explícito de Messages externo sigue el [contrato por modelo](../featherless-catalog.md#selector-externo-de-esfuerzo-claude), sin alterar Anthropic nativo, Chat ni Responses.
 > Ampliación local: [catálogo, prompts externos y sincronización](../featherless-catalog.md).
 The names used for these paths (native, translated, legacy bridge) and the declared per-feature
 dispositions are owned by [Protocol Paths](protocol-paths.md).

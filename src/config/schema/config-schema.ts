@@ -96,6 +96,7 @@ export const protocolConfigSchema = z.object({
 }).strict();
 
 export const configSchema = z.object({
+  claudeExternalEfforts: z.record(z.string().min(3).max(1024), z.enum(["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"])).optional(),
   chatgptDesktop: chatgptDesktopSchema.optional().catch(undefined),
   // Private prompt contents stay on disk; a bad path fails only external turns at dispatch.
   externalModelPrompts: z.object({

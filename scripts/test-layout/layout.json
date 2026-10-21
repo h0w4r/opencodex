@@ -2324,6 +2324,7 @@
     "featherless-capability-evidence.test.ts": "providers",
     "external-model-prompt.test.ts": "server",
     "external-model-prompt-route.test.ts": "codex-integration",
-    "codex-catalog-access-programs.test.ts": "codex-integration"
+    "codex-catalog-access-programs.test.ts": "codex-integration",
+    "claude-external-effort.test.ts": "claude-integration"
   }
 }

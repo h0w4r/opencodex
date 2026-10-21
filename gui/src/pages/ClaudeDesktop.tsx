@@ -1,4 +1,5 @@
 import ClaudeInterceptStart from "../components/ClaudeInterceptStart";
+import ClaudeExternalEffort from "../components/ClaudeExternalEffort";
 import { useCallback, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type ReactNode } from "react";
 import { LANE_PAGE, defaultCollapsedFamilies, laneView, rowStartsOpen } from "./claude-desktop-lane";
 import { makeCollapseStore, toggleInSet } from "./collapse-store";
@@ -550,6 +551,7 @@ export default function ClaudeDesktop({
 
   return (
     <>
+      <ClaudeExternalEffort apiBase={apiBase} active={active} />
       <div className="claude-desktop-toolbar">
         <p className="claude-panel-lead">{t("claudeDesktop.subtitle", { port: data.port })}</p>
       </div>

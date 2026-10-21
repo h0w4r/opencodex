@@ -1,4 +1,5 @@
 import ClaudeCode from "./ClaudeCode";
+import ClaudeExternalEffort from "../components/ClaudeExternalEffort";
 import { useT } from "../i18n/shared";
 import "../styles/claude-page.css";
 
@@ -16,6 +17,7 @@ export default function Claude({ apiBase, active = true, embedded = false }: { a
       {!embedded && <div className="page-head"><h2>{t("nav.claude")}</h2></div>}
       <p className="page-sub">{t("claude.pageSub")}</p>
       <ClaudeCode key={apiBase} apiBase={apiBase} active={active} />
+      <ClaudeExternalEffort apiBase={apiBase} active={active} />
     </section>
   );
 }

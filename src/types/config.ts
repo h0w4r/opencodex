@@ -516,6 +516,8 @@ export interface OcxConfig {
   /** Experimental macOS app-server stdout shim; absent or false disables it. */
   chatgptDesktop?: { appServerShim?: boolean };
   port: number;
+  /** Selecciones explícitas para Messages/Claude; clave canónica proveedor/modelo, nunca modelos Anthropic nativos. */
+  claudeExternalEfforts?: Record<string, string>;
   /** Operator-owned prompt files applied only after an external Codex/Claude route is resolved. */
   externalModelPrompts?: {
     codex?: string;

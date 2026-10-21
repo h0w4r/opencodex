@@ -134,6 +134,7 @@ import {
 } from "../../codex/loopback-target";
 import { checkComboTargetInputAdmission, checkInputAdmission } from "./input-admission";
 import { externalPromptPathForRoute, readExternalModelPrompt, replaceExternalBasePrompt } from "./external-model-prompt";
+import { claudeExternalEffortDecision } from "../../claude/external-effort";
 import {
   admissionMayUseMeteredComboTargets,
   admissionModelDeniedResponse,
@@ -1378,6 +1379,8 @@ export async function prepareResponsesRequest(
   const admittedPolicyRoute = { providerName: route.providerName, modelId: route.modelId };
   // Final guard before normalization may inject guidance into the raw body.
   leaveDirectLaneIfRerouted(options, route, parsed, logCtx);
+  const externalEffortDecision = claudeExternalEffortDecision(config, route, inboundWire, parsed);
+  if (externalEffortDecision.error) return formatErrorResponse(409, externalEffortDecision.code ?? "external_effort_invalid", externalEffortDecision.error);
   await applyFinalRouteRequestNormalization({
     parsed,
     route,

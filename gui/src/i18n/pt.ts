@@ -1,3 +1,4 @@
+import { claudeExternalEffortCopy } from "./claude-external-effort-copy";
 import { managedUpdateCopy } from "./managed-update-copy";
 import { featherlessCopy } from "./featherless-copy";
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
@@ -11,6 +12,7 @@ import type { TKey } from "./en";
 export const pt: Record<TKey, string> = {
   ...featherlessCopy,
   ...managedUpdateCopy,
+  ...claudeExternalEffortCopy,
   "reasoningRetention.advanced": "Configurações avançadas",
   "reasoningRetention.title": "Retenção de raciocínio",
   "reasoningRetention.enable": "Ativar retenção de raciocínio",

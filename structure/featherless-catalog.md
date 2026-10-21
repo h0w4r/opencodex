@@ -248,3 +248,19 @@ puede limitar inactividad en lugar de duración total. Se comprueban tanto la
 finalización de un hijo activo como la recolección de uno silencioso.
 Las baselines Windows corresponden a la navegación oficial 2.88.0; sólo se
 ocultan fecha/estado volátiles del índice y controles asíncronos ya documentados.
+
+## Selector externo de esfuerzo Claude
+
+`claudeExternalEfforts` conserva elecciones explícitas por identidad proveedor/modelo.
+`src/claude/external-effort.ts` valida la escala y captura una copia por petición;
+`src/server/responses/core-normalize.ts` aplica sólo a Messages externo. Un none declarado
+significa apagado explícito. Una elección retirada produce 409 external_effort_stale,
+sin inferencia ni sustitución silenciosa. Anthropic nativo, OMP/Chat y Codex/Responses
+no reciben esta política. La edición no cambia peticiones ya admitidas ni sus reintentos.
+`src/server/management/claude-external-effort-routes.ts` ofrece GET/PUT
+/api/claude/external-efforts con autenticación de gestión y escritura atómica de una hoja.
+`gui/src/components/ClaudeExternalEffort.tsx` advierte su alcance entre sesiones Claude
+y verifica persistencia después de guardar. El selector original de Claude no se modifica
+y puede mostrar otro valor: la GUI lo advierte. Sin escala no se inventan opciones.
+`tests/claude-integration/claude-external-effort.test.ts` cubre aislamiento, OFF,
+escalas discontinuas, edición concurrente y recuperación al cambiar de ruta.

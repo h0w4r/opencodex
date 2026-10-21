@@ -1,15 +1,23 @@
 {
-  "runId": "2026-10-17T17-32-40-059Z-1687bb2a",
-  "reason": "Revisión visual desktop/móvil: navegación y badge oficiales de 2.88.0; máscara limitada a fecha/estado de refresco volátiles; controles, modelo, restricciones, geometría y a11y reales satisfactorios.",
-  "approvedAt": "2026-10-17T17:37:08.743Z",
+  "runId": "2026-10-21T16-06-30-309Z-dd2f1910",
+  "reason": "Revisadas las capturas desktop y móvil: alcance por modelo y petición explícito, valores persistidos y reconciliados sin recarga, elipsis sin overflow, sin secretos.",
+  "approvedAt": "2026-10-21T16:08:49.317Z",
   "files": [
     {
+      "path": "desktop/claude-external-effort.png",
+      "sha256": "ece7db4b92d0d150b1781acf0fee3b1a942014aa715488666a09a78be90bd29a"
+    },
+    {
       "path": "desktop/route-0.png",
-      "sha256": "5aa62a5b5e3c565e4c56825ae2fd8ab33ae84ba9bc4b1a6fb899b9d27fe2b59e"
+      "sha256": "4d73fcd0988fc53886e3e8e0e1b5f7ccf5a306dc1ad4fd435871d743a5c92324"
+    },
+    {
+      "path": "mobile/claude-external-effort.png",
+      "sha256": "8d2c9abb73f8edbac89ae8f5e30d52bf0f3637f64f6ac71191545a93e72951a8"
     },
     {
       "path": "mobile/route-0.png",
-      "sha256": "b12e1e01e95957d7fe5f487afd8344effd2f160fc86dfaf38c05e336e0932831"
+      "sha256": "28725e720698fa35b35c5a7fb60e6934f3aa6fbee7605a614c80a4715537e3ac"
     }
   ]
 }

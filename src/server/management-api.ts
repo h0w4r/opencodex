@@ -81,6 +81,7 @@ import { handleCodexPromptRoutes } from "./management/codex-prompt-routes";
 import { handleIntegrationRoutes } from "./management/integration-routes";
 import { handleNativeIntegrationRoutes } from "./management/native-integration-routes";
 import { handleClaudeDesktopPickerRoutes } from "./management/claude-desktop-picker-routes";
+import { handleClaudeExternalEffortRoutes } from "./management/claude-external-effort-routes";
 import { handleDesktopCompatibilityRoutes } from "./management/desktop-compatibility-routes";
 import { handleDesktopCompatibilityRuntimeRoutes } from "./management/desktop-compatibility-runtime-routes";
 import { handleDesktopCompatibilitySettingsRoutes } from "./management/desktop-compatibility-settings-routes";
@@ -367,6 +368,7 @@ export async function handleManagementAPI(
     ??     (await handleNativeIntegrationRoutes(ctx))
     ??     (await handleCursorIntegrationRoutes(ctx))
     ??     (await handleClaudeDesktopPickerRoutes(ctx))
+    ??     (await handleClaudeExternalEffortRoutes(ctx))
     ??     (await handleDesktopCompatibilityRoutes(ctx))
     ??     (await handleDesktopCompatibilityRuntimeRoutes(ctx))
     ??     (await handleDesktopCompatibilitySettingsRoutes(ctx))

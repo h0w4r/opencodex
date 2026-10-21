@@ -1209,3 +1209,18 @@ margen proporcional. El prompt personalizado y las herramientas cuentan como
 entrada. Esta reserva no es un conteo exacto del tokenizer ni cambia los límites
 publicados del modelo. Sin metadatos suficientes, no se inventa una capacidad.
 Los rechazos reales del upstream continúan siendo errores visibles.
+
+## Selección exacta de esfuerzo en modelos externos
+
+En Integraciones → Claude, tanto en Code como en Desktop, el panel **Esfuerzo real
+de modelos externos** permite elegir el modelo y un valor de su escala verificada.
+Pulsa Guardar: se comprueba la persistencia y se aplica a las siguientes peticiones
+Messages, incluidas CLI, Code y Cowork. La elección se comparte entre sesiones de ese
+modelo, no por conversación. Las peticiones ya admitidas conservan su elección.
+
+El control de Claude puede mostrar otro valor: mientras haya una elección aquí,
+prevalece OpenCodex. No se modifica el binario firmado. ON/OFF sólo aparece si está
+declarado. Una escala desconocida no demuestra incapacidad ni recibe niveles inventados.
+Para volver al control del cliente, guarda **Sin fijar**. La configuración usa
+claudeExternalEfforts con claves proveedor/modelo. Una elección retirada de la escala
+produce un error explícito antes de inferir. Anthropic nativo, OMP y Codex no se alteran.

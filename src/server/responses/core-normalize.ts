@@ -14,6 +14,7 @@ import { MAIN_CODEX_ACCOUNT_ID } from "../../codex/main-account";
 import type { RequestLogContext } from "../request-log";
 import type { HandleResponsesOptions } from "./core-options";
 import { prepareEffortNormalization, stripEmptyLadderEffort, supportedLadderFor } from "../effort-policy";
+import { applyClaudeExternalEffort } from "../../claude/external-effort";
 import { resolveOpenCodeGoTransport } from "../../providers/opencode-go-transport";
 import { getOrAllocateRequestSessionLane } from "../request-log-conversation";
 import { shouldPreparePlaintextV2AgentMessages } from "../../responses/plaintext-v2-agent-messages";
@@ -323,6 +324,10 @@ export async function applyFinalRouteRequestNormalization(args: {
       }
     }
   }
+
+  // La selección explícita de Claude usa la ruta final; OMP/Responses y Anthropic nativo quedan intactos.
+  const selectedExternalEffort = applyClaudeExternalEffort(parsed, config, route, inboundWire);
+  if (selectedExternalEffort) logCtx.requestedEffort = `${logCtx.requestedEffort ?? "client"}->${selectedExternalEffort}`;
 
   {
     // Last word on a memory turn's effort: the phase setting is more specific than a provider-wide

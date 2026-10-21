@@ -1,3 +1,4 @@
+import { claudeExternalEffortCopy } from "./claude-external-effort-copy";
 import { managedUpdateCopy } from "./managed-update-copy";
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
 
@@ -78,6 +79,7 @@ export const tr: Record<TKey, string> = {
 
   ...featherlessCopy,
   ...managedUpdateCopy,
+  ...claudeExternalEffortCopy,
   "tray.updated": "Güncellendi {time} · her 60 sn",
   "tray.today": "Bugün",
   "tray.input": "Girdi",

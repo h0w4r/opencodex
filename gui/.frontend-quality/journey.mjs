@@ -1,3 +1,4 @@
+import { runClaudeEffortJourney } from './claude-effort-journey.mjs';
 /**
  * Ejecuta una mutación real y espera la respuesta terminal del backend.
  *
@@ -27,7 +28,7 @@ async function toggleModel({ page, expect, id, enabled }) {
 }
 
 /** Circuito real con Featherless y el servidor aislado 10101; nunca intercepta respuestas. */
-export async function runJourney({ page, expect, record, viewport }) {
+export async function runJourney({ page, expect, record, viewport, expectConsoleError }) {
   const search = page.getByRole('searchbox', { name: 'Buscar modelos Featherless' });
   const status = page.locator('.fl-results [role=status]');
   await expect(status).toContainText('modelos admitidos');
@@ -71,6 +72,7 @@ export async function runJourney({ page, expect, record, viewport }) {
   await page.reload();
   await expect(off).toHaveAttribute('aria-pressed', 'true');
   await expect(search).toHaveValue(id);
+  await runClaudeEffortJourney({ page, expect, record, viewport, expectConsoleError });
   // En móvil encuadra la tarjeta y sus controles; el cuerpo es el contenedor de scroll real.
   if (viewport === 'mobile') await page.locator('.fl-model').scrollIntoViewIfNeeded();
   record({ fase: 'seleccion-persistida-tras-recarga', modelo: id, habilitado: true, httpStatus: enableStatus });

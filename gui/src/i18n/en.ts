@@ -1,3 +1,4 @@
+import { claudeExternalEffortCopy } from "./claude-external-effort-copy";
 import { managedUpdateCopy } from "./managed-update-copy";
 import { desktopCompatibilityCopy } from "./desktop-compatibility-copy";
 
@@ -79,6 +80,7 @@ export const en = {
 
   ...featherlessCopy,
   ...managedUpdateCopy,
+  ...claudeExternalEffortCopy,
   "tray.updated": "Updated {time} · every 60s",
   "tray.today": "Today",
   "tray.input": "Input",

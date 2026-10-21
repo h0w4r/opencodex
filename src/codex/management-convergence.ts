@@ -155,6 +155,14 @@ export function createManagementConvergeCodex(
           catalogRefresh: unexpectedCatalogFailure(false),
         });
       }
+      // OFF es una decisión explícita del operador: tampoco una mutación del
+      // panel ni un refresco periódico puede volver a publicar catálogos en Codex.
+      if (retainedConfig.clientIntegrations?.codex === false) {
+        return projectCatalogOnlyOutcome({
+          changed: false,
+          catalogRefresh: { status: "skipped", reason: "not-requested", retryable: false },
+        });
+      }
       // Registration choices are committed independently, before sealing catalog authority.
       await resolvePendingInitialModelSelection(retainedConfig as OcxConfig);
       // The catalog and models cache live in the shared `CODEX_HOME`; a sibling instance leaves

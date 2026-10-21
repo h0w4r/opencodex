@@ -44,3 +44,11 @@ adaptador y Codex desvinculado de OpenCodex permanece fuera de este recorrido.
 1M, salida declarada 64K, modelos desconocidos, cap exclusivo de entrada,
 recalculo de metadatos y paridad entre los dos constructores Chat. Estos casos
 no sustituyen la aceptación con inferencias autenticadas del bundle desplegado.
+
+## Política Codex OFF
+
+`src/codex/management-convergence.ts` rehúsa publicar el catálogo de Codex cuando
+`clientIntegrations.codex` es `false`, también si una actualización del panel o
+`catalogAutoRefresh.enabled` solicita convergencia. El scheduler de
+`src/codex/catalog-auto-refresh.ts` conserva el fanout de Claude, OMP y otros
+clientes sin reescribir el catálogo de Codex ni anunciar que deba recargarse.

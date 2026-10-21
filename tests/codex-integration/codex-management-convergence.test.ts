@@ -196,3 +196,11 @@ for (const changed of booleans) {
     });
   }
 }
+
+test("Codex OFF impide publicar catálogo incluso con refresco explícitamente habilitado", async () => {
+  const row = { ...config(), clientIntegrations: { codex: false }, catalogAutoRefresh: { enabled: true, intervalMinutes: 15 } };
+  const outcome = await createManagementConvergeCodex(row)(createCatalogConvergeRequest({ deadlineMs: 1000 }));
+  expect(outcome).toMatchObject({ kind: "catalog-only", changed: false,
+    catalogRefresh: { status: "skipped", reason: "not-requested", retryable: false } });
+  expect(outcome.history.status).toBe("not-evaluated");
+});

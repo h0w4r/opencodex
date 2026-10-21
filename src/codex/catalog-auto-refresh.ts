@@ -272,7 +272,7 @@ async function tick(force = false): Promise<void> {
     // funnel contract break, not something this scheduler should re-classify.
     if (outcome.kind !== "catalog-only") return;
     const { recordCatalogAutoRefreshOutcome, lastCatalogAutoRefreshOutcome } = await import("./catalog-refresh-status");
-    const reloadRequired = (outcome.changed || lastCatalogAutoRefreshOutcome()?.reloadRequired === true)
+    const reloadRequired = codexManaged && (outcome.changed || lastCatalogAutoRefreshOutcome()?.reloadRequired === true)
       ? await catalogAutoRefreshReloadRequired(outcome.changed) : false;
     if (entryGeneration !== generation) return;
     recordCatalogAutoRefreshOutcome(outcome.catalogRefresh, outcome.changed, reloadRequired);
@@ -283,7 +283,9 @@ async function tick(force = false): Promise<void> {
         : "[catalog-auto-refresh] served model set changed");
     }
     const fanout = clientFanout;
-    if ((outcome.changed || reasoningProfilesChanged) && fanout) {
+    // Con Codex OFF el catálogo local no se publica, pero los demás clientes
+    // deben seguir recibiendo metadatos nuevos desde sus propias proyecciones.
+    if ((outcome.changed || reasoningProfilesChanged || !codexManaged) && fanout) {
       const current = () => entryGeneration === generation;
       try {
         const failed = (await fanout(current)).filter(result => !result.ok).length;

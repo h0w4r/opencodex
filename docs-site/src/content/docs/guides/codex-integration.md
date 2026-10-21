@@ -1676,3 +1676,8 @@ switch to a direct connection.
 
 Proxy selection, SOCKS5/SOCKS5h support, certificate verification, and connection
 lifecycle are unchanged. Both SOCKS spellings retain remote target DNS resolution.
+
+
+Con Codex desactivado, las mutaciones de gestión y el refresco periódico no
+vuelven a publicar su catálogo local. El refresco de Claude, OMP y otros
+clientes continúa independientemente: no hace falta reactivar Codex para ellos.
